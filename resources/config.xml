@@ -1,0 +1,5 @@
+<!--TODO:check how to specify dates in xml2py format -->
+<backup archive="true" backup-downtime="3 days" rotation-period="2 month">
+    <source>/opt</source>
+    <target>/mnt/nas</target>
+</backup>

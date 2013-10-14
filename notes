@@ -1,0 +1,10 @@
+Linux share mount example:
+sudo mkdir -p /mnt/nas
+sudo mount -t cifs //nas/public -o username=uname,dom=domain,password=pword /mnt/nas
+
+Rsync command example:
+sudo rsync -zWrlpDq --delete /home/user/ws/ws-crx/rex-backup/ /mnt/nas/rex-backup
+(z - compress, W - whole file, r - recursive dir, l - links as symlinks, p - preserve permissions, D - special/device files,
+q - quite output mode, delete - delete files at the target not present at the source)
+
+Robocopy command example:
