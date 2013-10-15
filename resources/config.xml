@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--TODO:check how to specify dates in xml2py format -->
 <backup archive="true" backup-downtime="3 days" rotation-period="2 month">
     <source>/opt</source>

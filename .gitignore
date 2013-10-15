@@ -1,5 +1,11 @@
 # System
 .git
 
+#Python
+__pycache__
+
 # IDE
 .idea
+
+#Misc
+*.log

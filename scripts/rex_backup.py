@@ -18,9 +18,18 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
+import logging
+import datetime
+
 from file_utils import FileUtils
+from config import Context
 
 def main():
-    pass
+    context = FileUtils.readXml2Obj("config.xml")
+    logging.info(context.__str__())
 
-if __name__ == '__main__':main()
+if __name__ == '__main__':
+    logFile = "resources/rex-backup-"+datetime.datetime.now().strftime("%Y%M%d%H%M")+".log"
+    logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
+    logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
+    main()

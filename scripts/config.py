@@ -23,9 +23,12 @@ class Context:
         Class that contains configuration strings.
     '''
 
-    def __init__(self, backupDowntime, rotationPeriod, source=None, target=None, archive=True):
+    def __init__(self, backupDowntime='', rotationPeriod='', source=None, target=None, archive=True):
         self.source = source
         self.target = target
         self.archive = archive
         self.backupDowntime = backupDowntime
         self.rotationPeriod = rotationPeriod
+
+    def __str__(self):
+        return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+",archive="+str(self.archive)+"]"

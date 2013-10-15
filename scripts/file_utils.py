@@ -18,6 +18,13 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
+
+from xml.dom.minidom import parse
+import xml.dom.minidom as minidom
+import os
+
+from config import Context
+
 class FileUtils:
     '''
         Class that provides major file operations like archiving, directory tree listing and etc.
@@ -25,3 +32,17 @@ class FileUtils:
 
     def __init__(self):
         pass
+
+    @staticmethod
+    def readXml2Obj(fileName):
+        dom = parse(os.getcwd() + "/resources/" + fileName)
+        backups = dom.getElementsByTagName("backup")
+        context = Context()
+        for backup in backups:
+            if backup.hasAttribute("archive"):context.archive = backup.getAttribute("archive")
+            if backup.hasAttribute("backup-downtime"): context.backupDowntime = backup.getAttribute("backup-downtime")
+            if backup.hasAttribute("rotation-period"): context.rotationPeriod = backup.getAttribute("rotation-period")
+
+            context.source = backup.getElementsByTagName("source")[0].childNodes[0].data
+            context.target = backup.getElementsByTagName("target")[0].childNodes[0].data
+        return context
