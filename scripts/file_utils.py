@@ -22,18 +22,23 @@ import os
 from xml.dom.minidom import parse
 
 from config import Config
+from config import ConfigError
 
 class FileUtils:
     """
     Provides major file operations like archiving, directory tree listing, config parsing and etc.
     """
-
     @staticmethod
     def readConfig(fileName):
         """
         Tries to parse a config file located in file working_directory/resources/fileName
         """
+        #TODO:add xml config validation
         dom = parse(os.getcwd() + "/resources/" + fileName)
+
+        #Check if there is anything at all
+        if dom.getElementsByTagName("backup").length < 0:
+            raise ConfigError("No backup configuration found. Please check config xml format and/or content.")
 
         #Filling in config values from xml ET
         config = Config()

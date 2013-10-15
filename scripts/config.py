@@ -32,3 +32,12 @@ class Config:
 
     def __str__(self):
         return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+",archive="+str(self.archive)+"]"
+
+class ConfigError(Exception):
+    """
+    Abstract configuration exception.
+    """
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
