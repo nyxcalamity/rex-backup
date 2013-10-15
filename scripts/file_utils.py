@@ -18,31 +18,30 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-
-from xml.dom.minidom import parse
-import xml.dom.minidom as minidom
 import os
+from xml.dom.minidom import parse
 
-from config import Context
+from config import Config
 
 class FileUtils:
-    '''
-        Class that provides major file operations like archiving, directory tree listing and etc.
-    '''
-
-    def __init__(self):
-        pass
+    """
+    Provides major file operations like archiving, directory tree listing, config parsing and etc.
+    """
 
     @staticmethod
-    def readXml2Obj(fileName):
+    def readConfig(fileName):
+        """
+        Tries to parse a config file located in file working_directory/resources/fileName
+        """
         dom = parse(os.getcwd() + "/resources/" + fileName)
-        backups = dom.getElementsByTagName("backup")
-        context = Context()
-        for backup in backups:
-            if backup.hasAttribute("archive"):context.archive = backup.getAttribute("archive")
-            if backup.hasAttribute("backup-downtime"): context.backupDowntime = backup.getAttribute("backup-downtime")
-            if backup.hasAttribute("rotation-period"): context.rotationPeriod = backup.getAttribute("rotation-period")
 
-            context.source = backup.getElementsByTagName("source")[0].childNodes[0].data
-            context.target = backup.getElementsByTagName("target")[0].childNodes[0].data
-        return context
+        #Filling in config values from xml ET
+        config = Config()
+        backup = dom.getElementsByTagName("backup")[0]
+        if backup.hasAttribute("archive"):config.archive = backup.getAttribute("archive")
+        if backup.hasAttribute("backup-downtime"): config.backupDowntime = backup.getAttribute("backup-downtime")
+        if backup.hasAttribute("rotation-period"): config.rotationPeriod = backup.getAttribute("rotation-period")
+        config.source = backup.getElementsByTagName("source")[0].childNodes[0].data
+        config.target = backup.getElementsByTagName("target")[0].childNodes[0].data
+
+        return config

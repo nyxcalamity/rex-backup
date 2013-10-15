@@ -22,14 +22,15 @@ import logging
 import datetime
 
 from file_utils import FileUtils
-from config import Context
 
 def main():
-    context = FileUtils.readXml2Obj("config.xml")
+    context = FileUtils.readConfig("config.xml")
     logging.info(context.__str__())
 
 if __name__ == '__main__':
+    #Setting up application logger
     logFile = "resources/rex-backup-"+datetime.datetime.now().strftime("%Y%M%d%H%M")+".log"
     logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
+    #Will create a new file each time application is executed
     logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
     main()

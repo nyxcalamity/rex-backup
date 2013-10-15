@@ -18,10 +18,10 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-class Context:
-    '''
-        Class that contains configuration strings.
-    '''
+class Config:
+    """
+    Contains backup configuration parameters.
+    """
 
     def __init__(self, backupDowntime='', rotationPeriod='', source=None, target=None, archive=True):
         self.source = source
