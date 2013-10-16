@@ -17,7 +17,7 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import os, sys, shutil, datetime, logging
+import os, sys, shutil, time, datetime, logging, hashlib
 from xml.dom.minidom import parse
 from shutil import make_archive
 
@@ -108,6 +108,20 @@ class FileUtils:
         sourceName = os.path.basename(source) #Extracts base name
         archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
         return make_archive(os.path.join(FileUtils.getTmpDir(),archiveName), 'gztar', source)
+
+    @staticmethod
+    def generateMD5File(source):
+        if os.path.exists(source) and os.path.isfile(source):
+            md5Str = source + "-" + str(time.time())
+            m = hashlib.md5(md5Str.encode("utf-8")) #TODO:find out why it is needed to use encode method?
+            md5File = open(source+".md5","w")
+            md5File.write(m.hexdigest() + "\t" + os.path.basename(source))
+            md5File.close()
+            return md5File.name
+        else:
+            msg = "Specified file doesn't exist or is not a file."
+            logging.error(msg)
+            raise FileUtilsError(msg)
 
     @staticmethod
     def copy(sourceFile, targetDir):

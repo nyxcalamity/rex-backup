@@ -22,17 +22,27 @@ import logging, datetime, os
 
 from file_utils import FileUtils
 
-def main():
+def performBackupTask():
     logging.info("Reading config file...")
     config = FileUtils.readConfig("config.xml")
     logging.info("Archiving source directory...")
     archiveFile = FileUtils.archive(config.source)
+    logging.info("Generating MD5 file...")
+    archiveMD5File = FileUtils.generateMD5File(archiveFile)
     logging.info("Copying archive to the target...")
     targetArchive = FileUtils.copy(archiveFile, config.target)
+    logging.info("Copying MD5 file to the target...")
+    targetArchive = FileUtils.copy(archiveMD5File, config.target)
 
     if targetArchive:
         logging.info("Routine complete. Cleaning tmp directory...")
         FileUtils.cleanTmp()
+
+def checkBackup():
+    pass
+
+def main():
+    performBackupTask()
 
 if __name__ == '__main__':
     #Setting up application logger
