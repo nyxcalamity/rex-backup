@@ -30,7 +30,7 @@ def main():
     logging.info("Copying archive to the target...")
     targetArchive = FileUtils.copy(archiveFile, config.target)
 
-    if targetArchive:
+    if not targetArchive:
         logging.info("Seems like it went ok Geronimo.")
 
 if __name__ == '__main__':
