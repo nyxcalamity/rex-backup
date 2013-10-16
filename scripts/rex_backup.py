@@ -30,12 +30,13 @@ def main():
     logging.info("Copying archive to the target...")
     targetArchive = FileUtils.copy(archiveFile, config.target)
 
-    if not targetArchive:
-        logging.info("Seems like it went ok Geronimo.")
+    if targetArchive:
+        logging.info("Routine complete. Cleaning tmp directory...")
+        FileUtils.cleanTmp()
 
 if __name__ == '__main__':
     #Setting up application logger
-    #logFile = FileUtils.getLogDir()+FileUtils.getSep()+"rex-backup-"+datetime.datetime.now().strftime("%Y%M%d%H%M")+".log"
+    #logFile = FileUtils.getLogDir()+FileUtils.getSep()+"rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log"
     logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
     #Will create a new file each time application is executed
     #logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)

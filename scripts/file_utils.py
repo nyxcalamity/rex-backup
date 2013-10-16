@@ -17,12 +17,12 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import os, sys, shutil
-import datetime, logging
+import os, sys, shutil, tempfile, datetime, logging
 from xml.dom.minidom import parse
 from shutil import make_archive
 
 from config import Config
+from config import ConfigError
 
 class FileUtils:
     """
@@ -49,11 +49,18 @@ class FileUtils:
         """
         Returns path to the temporary directory. Creates one if it didn't exist.
         """
-        #TODO:consider replacing with tempfile.gettempdir()
-        tmpDir = FileUtils.getWorkingDir() + FileUtils.getSep() + "tmp"
+        tmpDir =  FileUtils.getWorkingDir() + FileUtils.getSep() + "tmp"
         if not os.path.exists(tmpDir):
             os.makedirs(tmpDir)
         return tmpDir
+
+    @staticmethod
+    def cleanTmp():
+        """
+        Deletes all archives by ARCHIVE_PREFIX from temporary directory.
+        """
+        for file in os.listdir(FileUtils.getTmpDir()):
+            os.remove(FileUtils.getTmpDir() + FileUtils.getSep() + file)
 
     @staticmethod
     def getLogDir():
@@ -69,26 +76,33 @@ class FileUtils:
     def readConfig(fileName):
         """
         Tries to parse a config file located in file working_directory/resources/fileName.
+
+        Returns:Configuration object read from file.
+        Throws: ConfigError
         """
-        #TODO:add xml config validation
-        dom = parse(FileUtils.getWorkingDir() + FileUtils.getSep() + "resources" + FileUtils.getSep() + fileName)
+        configFile = FileUtils.getWorkingDir() + FileUtils.getSep() + "resources" + FileUtils.getSep() + fileName
+        if os.path.exists(configFile):
+            dom = parse(configFile)
 
-        #Check if there is anything at all
-        if dom.getElementsByTagName("backup").length < 0:
-            #TODO:think of a more elegant way to do this
-            logging.error("No backup configuration found. Please check config xml file format and/or content.")
-            raise SystemExit #Nothing to do here
+            #Filling in config values from xml ET
+            config = Config()
+            try:
+                backup = dom.getElementsByTagName("backup")[0]
+                if backup.hasAttribute("archive"):config.archive = backup.getAttribute("archive")
+                if backup.hasAttribute("backup-downtime"): config.backupDowntime = backup.getAttribute("backup-downtime")
+                if backup.hasAttribute("rotation-period"): config.rotationPeriod = backup.getAttribute("rotation-period")
+                config.source = backup.getElementsByTagName("source")[0].childNodes[0].data
+                config.target = backup.getElementsByTagName("target")[0].childNodes[0].data
+            except Exception:
+                msg = "An error occured while trying to parse configuration file. Please check it's formatting and contents."
+                logging.error(msg)
+                raise ConfigError(msg)
 
-        #Filling in config values from xml ET
-        config = Config()
-        backup = dom.getElementsByTagName("backup")[0]
-        if backup.hasAttribute("archive"):config.archive = backup.getAttribute("archive")
-        if backup.hasAttribute("backup-downtime"): config.backupDowntime = backup.getAttribute("backup-downtime")
-        if backup.hasAttribute("rotation-period"): config.rotationPeriod = backup.getAttribute("rotation-period")
-        config.source = backup.getElementsByTagName("source")[0].childNodes[0].data
-        config.target = backup.getElementsByTagName("target")[0].childNodes[0].data
-
-        return config
+            return config
+        else:
+            msg = "Could not locate specified configuration file."
+            logging.error(msg)
+            raise ConfigError(msg)
 
     @staticmethod
     def archive(source):
@@ -99,7 +113,7 @@ class FileUtils:
         Absolute path to the archived file.
         """
         sourceName = os.path.basename(source) #Extracts base name
-        archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%M%d%H%M")
+        archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
         return make_archive(FileUtils.getTmpDir() + FileUtils.getSep() + archiveName, 'gztar', source)
 
     @staticmethod
@@ -107,22 +121,37 @@ class FileUtils:
         """
         Copies source file to the target dir.
 
-        Returns:
-        Absolute path to the target file.
+        Returns:Absolute path to the target file.
+        Throws: FileUtilsError
         """
+        errorMsg = ""
         if not os.path.exists(sourceFile):
-            logging.error("Provided path doesn't exist.")
-        if os.path.isdir(sourceFile):
-            logging.error("Provided path is not a file path.")
-        if not os.path.exists(targetDir):
+            errorMsg = "Provided path doesn't exist."
+        if not errorMsg and os.path.isdir(sourceFile):
+            errorMsg = "Provided path is not a file path."
+        if not errorMsg and not os.path.exists(targetDir):
             logging.warning("Provided path doesn't exist. Trying to create it.")
             try:
                 os.makedirs(targetDir)
                 logging.info("Created: " + targetDir)
             except Exception:
-                logging.error("Couldn't create: " + targetDir)
-        if os.path.isfile(targetDir):
-            logging.error("Provided path is not a directory.")
+                errorMsg = "Couldn't create: " + targetDir + ". Target location can't be reached."
+        if not errorMsg and os.path.isfile(targetDir):
+            errorMsg = "Provided path is not a directory."
+
+        if errorMsg:
+            logging.error(errorMsg)
+            raise FileUtilsError(errorMsg)
 
         targetFile = targetDir + FileUtils.getSep() + os.path.basename(sourceFile)
-        return shutil.copyfile(sourceFile, targetFile)
+        shutil.copyfile(sourceFile, targetFile)
+        return targetFile
+
+class FileUtilsError(Exception):
+    """
+    Abstract configuration exception.
+    """
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)

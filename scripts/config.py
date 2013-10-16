@@ -22,7 +22,6 @@ class Config:
     """
     Contains backup configuration parameters.
     """
-
     def __init__(self, backupDowntime='', rotationPeriod='', source=None, target=None, archive=True):
         self.source = source
         self.target = target

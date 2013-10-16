@@ -1,12 +1,11 @@
 rex-backup
 ----
 
-A collection of backup scripts that uses rsync and robocopy for it's routines.
+Simple backup utility.
 
 Requirements
 ----
 
 - mounted shares
-- installed rsync or robocopy
-- installed tar or 7zip
 - installed python 3.3+
+- user must have full rights over the directory where script is located
