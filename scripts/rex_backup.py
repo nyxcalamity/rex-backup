@@ -18,7 +18,7 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import logging, datetime
+import logging, datetime, os
 
 from file_utils import FileUtils
 
@@ -36,7 +36,7 @@ def main():
 
 if __name__ == '__main__':
     #Setting up application logger
-    #logFile = FileUtils.getLogDir()+FileUtils.getSep()+"rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log"
+    #logFile = os.path.join(FileUtils.getLogDir(), "rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log")
     logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
     #Will create a new file each time application is executed
     #logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)

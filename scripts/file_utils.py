@@ -17,7 +17,7 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import os, sys, shutil, tempfile, datetime, logging
+import os, sys, shutil, datetime, logging
 from xml.dom.minidom import parse
 from shutil import make_archive
 
@@ -30,26 +30,19 @@ class FileUtils:
     """
 
     @staticmethod
-    def getSep():
-        """
-        Returns a platform specific path separator.
-        """
-        return os.sep
-
-    @staticmethod
     def getWorkingDir():
         """
         Returns application working directory. (Parent directory of the script that invoked python interpreter)
         """
         #TODO:check if this works in windows
-        return sys.path[0] + FileUtils.getSep() + os.pardir
+        return os.path.join(sys.path[0], os.pardir)
 
     @staticmethod
     def getTmpDir():
         """
         Returns path to the temporary directory. Creates one if it didn't exist.
         """
-        tmpDir =  FileUtils.getWorkingDir() + FileUtils.getSep() + "tmp"
+        tmpDir =  os.path.join(FileUtils.getWorkingDir(), "tmp")
         if not os.path.exists(tmpDir):
             os.makedirs(tmpDir)
         return tmpDir
@@ -60,14 +53,14 @@ class FileUtils:
         Deletes all archives by ARCHIVE_PREFIX from temporary directory.
         """
         for file in os.listdir(FileUtils.getTmpDir()):
-            os.remove(FileUtils.getTmpDir() + FileUtils.getSep() + file)
+            os.remove(os.path.join(FileUtils.getTmpDir(), file))
 
     @staticmethod
     def getLogDir():
         """
         Returns path to the log directory. Creates one if it didn't exist.
         """
-        logDir = FileUtils.getWorkingDir() + FileUtils.getSep() + "logs"
+        logDir = os.path.join(FileUtils.getWorkingDir(), "logs")
         if not os.path.exists(logDir):
             os.makedirs(logDir)
         return logDir
@@ -80,7 +73,7 @@ class FileUtils:
         Returns:Configuration object read from file.
         Throws: ConfigError
         """
-        configFile = FileUtils.getWorkingDir() + FileUtils.getSep() + "resources" + FileUtils.getSep() + fileName
+        configFile = os.path.join(FileUtils.getWorkingDir(), "resources", fileName)
         if os.path.exists(configFile):
             dom = parse(configFile)
 
@@ -114,7 +107,7 @@ class FileUtils:
         """
         sourceName = os.path.basename(source) #Extracts base name
         archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
-        return make_archive(FileUtils.getTmpDir() + FileUtils.getSep() + archiveName, 'gztar', source)
+        return make_archive(os.path.join(FileUtils.getTmpDir(),archiveName), 'gztar', source)
 
     @staticmethod
     def copy(sourceFile, targetDir):
@@ -143,7 +136,7 @@ class FileUtils:
             logging.error(errorMsg)
             raise FileUtilsError(errorMsg)
 
-        targetFile = targetDir + FileUtils.getSep() + os.path.basename(sourceFile)
+        targetFile = os.path.join(targetDir , os.path.basename(sourceFile))
         shutil.copyfile(sourceFile, targetFile)
         return targetFile
 
