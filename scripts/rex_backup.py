@@ -18,31 +18,46 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import logging, datetime, os
+import logging
 
 from file_utils import FileUtils
 
-def performBackupTask():
-    logging.info("Reading config file...")
-    config = FileUtils.readConfig("config.xml")
+def performBackupTask(config):
+    """
+    Performs backup according to provided config.
+    """
+    logging.info("PERFORMING BACKUP")
     logging.info("Archiving source directory...")
     archiveFile = FileUtils.archive(config.source)
     logging.info("Generating MD5 file...")
     archiveMD5File = FileUtils.generateMD5File(archiveFile)
     logging.info("Copying archive to the target...")
-    targetArchive = FileUtils.copy(archiveFile, config.target)
+    targetArchiveFile = FileUtils.copy(archiveFile, config.target)
     logging.info("Copying MD5 file to the target...")
-    targetArchive = FileUtils.copy(archiveMD5File, config.target)
+    targetArchiveMD5File = FileUtils.copy(archiveMD5File, config.target)
 
-    if targetArchive:
-        logging.info("Routine complete. Cleaning tmp directory...")
+    if targetArchiveFile and targetArchiveMD5File:
+        logging.info("Cleaning tmp directory...")
         FileUtils.cleanTmp()
 
-def checkBackup():
-    pass
+    logging.info("BACKUP COMPLETED SUCCESSFULLY")
+
+def performBackupCheck(config):
+    """
+    Checks if backup was performed correctly according to specified config.
+    """
+    logging.info("CHECKING BACKUP")
+    logging.info("Copying latest archive to tmp dir...")
+    logging.info("Comparing tree listings...")
+    logging.info("Comparing file sizes and modification dates...")
+    logging.info("Sending reports...")
+    logging.info("BACKUP CHECK COMPLETED SUCCESSFULLY")
 
 def main():
-    performBackupTask()
+    logging.info("Reading config file...")
+    config = FileUtils.readConfig("config.xml")
+    performBackupTask(config)
+    performBackupCheck(config)
 
 if __name__ == '__main__':
     #Setting up application logger

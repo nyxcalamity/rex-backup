@@ -17,12 +17,19 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import os, sys, shutil, time, datetime, logging, hashlib
+import os
+import sys
+import shutil
+import time
+import datetime
+import logging
+import hashlib
 from xml.dom.minidom import parse
 from shutil import make_archive
 
 from config import Config
 from config import ConfigError
+
 
 class FileUtils:
     """
@@ -113,7 +120,8 @@ class FileUtils:
     def generateMD5File(source):
         if os.path.exists(source) and os.path.isfile(source):
             md5Str = source + "-" + str(time.time())
-            m = hashlib.md5(md5Str.encode("utf-8")) #TODO:find out why it is needed to use encode method?
+            #Apparently md5 algo operates on bytes, that's why we need to encode the string
+            m = hashlib.md5(md5Str.encode("utf-8"))
             md5File = open(source+".md5","w")
             md5File.write(m.hexdigest() + "\t" + os.path.basename(source))
             md5File.close()
