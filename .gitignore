@@ -1,11 +1,11 @@
-# System
-.git
-
 #Python
 __pycache__
+*.pyc
 
 # IDE
 .idea
 
 #Misc
-*.log
+.git
+logs
+tmp

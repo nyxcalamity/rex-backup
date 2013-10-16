@@ -18,19 +18,26 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import logging
-import datetime
+import logging, datetime
 
 from file_utils import FileUtils
 
 def main():
-    context = FileUtils.readConfig("config.xml")
-    logging.info(context.__str__())
+    logging.info("Reading config file...")
+    config = FileUtils.readConfig("config.xml")
+    logging.info("Archiving source directory...")
+    archiveFile = FileUtils.archive(config.source)
+    logging.info("Copying archive to the target...")
+    targetArchive = FileUtils.copy(archiveFile, config.target)
+
+    if targetArchive:
+        logging.info("Seems like it went ok Geronimo.")
 
 if __name__ == '__main__':
     #Setting up application logger
-    logFile = "resources/rex-backup-"+datetime.datetime.now().strftime("%Y%M%d%H%M")+".log"
+    #logFile = FileUtils.getLogDir()+FileUtils.getSep()+"rex-backup-"+datetime.datetime.now().strftime("%Y%M%d%H%M")+".log"
     logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
     #Will create a new file each time application is executed
-    logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
+    #logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
+    logging.basicConfig(level=logging.DEBUG,format=logFormat)
     main()
