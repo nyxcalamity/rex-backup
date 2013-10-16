@@ -82,8 +82,8 @@ class FileUtils:
             try:
                 backup = dom.getElementsByTagName("backup")[0]
                 if backup.hasAttribute("archive"):config.archive = backup.getAttribute("archive")
-                if backup.hasAttribute("backup-downtime"): config.backupDowntime = backup.getAttribute("backup-downtime")
-                if backup.hasAttribute("rotation-period"): config.rotationPeriod = backup.getAttribute("rotation-period")
+                if backup.hasAttribute("backup-downtime"): config.backupDowntime = int(backup.getAttribute("backup-downtime"))
+                if backup.hasAttribute("rotation-period"): config.rotationPeriod = int(backup.getAttribute("rotation-period"))
                 config.source = backup.getElementsByTagName("source")[0].childNodes[0].data
                 config.target = backup.getElementsByTagName("target")[0].childNodes[0].data
             except Exception:
