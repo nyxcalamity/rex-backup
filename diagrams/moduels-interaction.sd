@@ -1,0 +1,30 @@
+#A simple sequence diagram editor 4.01 was used to generate this file.
+#Please visit http://sdedit.sourceforge.net/ for more information.
+
+backup:script[t]
+checker:script[t]
+cleaner:script[t]
+tmp:dir
+local:dir
+share:dir
+
+#Backup process
+backup:share.checkLatestArchiveDate()
+backup:listOfFIles=local.listDir()
+backup:archiveFile=tmp.archive(listOfFiles)
+backup:archiveMD5File=tmp.generateMD5File(archiveFile)
+backup:shareArchiveFile=share.copyArchive()
+backup:shareArchiveMD5File=share.copyArchiveMD5()
+
+#Checker module
+checker:share.checkLatestArchiveDate()
+checker:archiveFile=share.downloadArchive()
+checker:archiveFileMD5=share.downloadArchiveMD5()
+checker:checkArchiveMD5()
+checker:dirListing=local.listDir()
+checker:tmp.compareDirListing(dirListing)
+checker:emailReporting()
+
+#Cleaner module
+cleaner:tmp.cleanup()
+cleaner:share.archiveRotation()

@@ -25,7 +25,6 @@ class Config:
     def __init__(self, backupDowntime='', rotationPeriod='', source=None, target=None, archive=True):
         self.source = source
         self.target = target
-        self.archive = archive
         self.backupDowntime = backupDowntime
         self.rotationPeriod = rotationPeriod
 

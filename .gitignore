@@ -9,3 +9,5 @@ __pycache__
 .git
 logs
 tmp
+*.pdf
+*.png

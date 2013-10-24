@@ -24,6 +24,7 @@ import time
 import datetime
 import logging
 import hashlib
+import operator
 from xml.dom.minidom import parse
 from shutil import make_archive
 
@@ -41,7 +42,6 @@ class FileUtils:
         """
         Returns application working directory. (Parent directory of the script that invoked python interpreter)
         """
-        #TODO:check if this works in windows
         return os.path.join(sys.path[0], os.pardir)
 
     @staticmethod
@@ -88,7 +88,6 @@ class FileUtils:
             config = Config()
             try:
                 backup = dom.getElementsByTagName("backup")[0]
-                if backup.hasAttribute("archive"):config.archive = backup.getAttribute("archive")
                 if backup.hasAttribute("backup-downtime"): config.backupDowntime = int(backup.getAttribute("backup-downtime"))
                 if backup.hasAttribute("rotation-period"): config.rotationPeriod = int(backup.getAttribute("rotation-period"))
                 config.source = backup.getElementsByTagName("source")[0].childNodes[0].data
@@ -105,31 +104,28 @@ class FileUtils:
             raise ConfigError(msg)
 
     @staticmethod
-    def archive(source):
+    def archive(sourceDir):
         """
         Performs an archiving operation on the source (both file and dir) and stores the archive in the working_dir/tmp.
 
         Returns:
         Absolute path to the archived file.
         """
-        sourceName = os.path.basename(source) #Extracts base name
-        archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
-        return make_archive(os.path.join(FileUtils.getTmpDir(),archiveName), 'gztar', source)
+        if FileUtils.isValidDir(sourceDir):
+            sourceName = os.path.basename(sourceDir) #Extracts base name
+            archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
+            return make_archive(os.path.join(FileUtils.getTmpDir(),archiveName), 'gztar', sourceDir)
 
     @staticmethod
-    def generateMD5File(source):
-        if os.path.exists(source) and os.path.isfile(source):
-            md5Str = source + "-" + str(time.time())
+    def generateMD5File(sourceFile):
+        if FileUtils.isValidFile(sourceFile):
+            md5Str = sourceFile + "-" + str(time.time())
             #Apparently md5 algo operates on bytes, that's why we need to encode the string
             m = hashlib.md5(md5Str.encode("utf-8"))
-            md5File = open(source+".md5","w")
-            md5File.write(m.hexdigest() + "\t" + os.path.basename(source))
+            md5File = open(sourceFile+".md5","w")
+            md5File.write(m.hexdigest() + "\t" + os.path.basename(sourceFile))
             md5File.close()
             return md5File.name
-        else:
-            msg = "Specified file doesn't exist or is not a file."
-            logging.error(msg)
-            raise FileUtilsError(msg)
 
     @staticmethod
     def copy(sourceFile, targetDir):
@@ -139,28 +135,47 @@ class FileUtils:
         Returns:Absolute path to the target file.
         Throws: FileUtilsError
         """
-        errorMsg = ""
-        if not os.path.exists(sourceFile):
-            errorMsg = "Provided path doesn't exist."
-        if not errorMsg and os.path.isdir(sourceFile):
-            errorMsg = "Provided path is not a file path."
-        if not errorMsg and not os.path.exists(targetDir):
-            logging.warning("Provided path doesn't exist. Trying to create it.")
-            try:
-                os.makedirs(targetDir)
-                logging.info("Created: " + targetDir)
-            except Exception:
-                errorMsg = "Couldn't create: " + targetDir + ". Target location can't be reached."
-        if not errorMsg and os.path.isfile(targetDir):
-            errorMsg = "Provided path is not a directory."
+        if FileUtils.isValidFile(sourceFile):
+            if not FileUtils.isValidDir(targetDir):
+                logging.info("Trying to create " + targetDir)
+                try:
+                    os.makedirs(targetDir)
+                    logging.info("Created: " + targetDir)
+                except Exception:
+                    logging.error("Couldn't create: " + targetDir + ". Target location can't be reached.")
 
-        if errorMsg:
-            logging.error(errorMsg)
-            raise FileUtilsError(errorMsg)
+            targetFile = os.path.join(targetDir , os.path.basename(sourceFile))
+            shutil.copyfile(sourceFile, targetFile)
+            return targetFile
 
-        targetFile = os.path.join(targetDir , os.path.basename(sourceFile))
-        shutil.copyfile(sourceFile, targetFile)
-        return targetFile
+    @staticmethod
+    def getLatestArchive(sourceDir):
+        """
+        Parses source contents and tries to find file which is assumed to be the latest archive.
+        Returns a tuple of the form (absoluteFilePath, modificationTimestamp)
+        """
+        if FileUtils.isValidDir(sourceDir):
+            fileMTime = dict()
+            for dirpath, dirnames, filenames in os.walk(sourceDir):
+                for filename in filenames:
+                    fileMTime[filename] = os.path.getmtime(os.path.join(dirpath, filename))
+            fileMTimeTuple = max(fileMTime.iteritems(), key=operator.itemgetter(1))
+
+            return (os.path.join(sourceDir, fileMTimeTuple[0]), fileMTimeTuple[1])
+
+    @staticmethod
+    def isValidFile(path):
+        if not os.path.isdir(path):
+            logging.error("Provided path is not a file path.(" + path + ")")
+            return False
+        return True
+
+    @staticmethod
+    def isValidDir(path):
+        if not os.path.isdir(path):
+            logging.error("Provided path is not a dir path.(" + path + ")")
+            return False
+        return True
 
 class FileUtilsError(Exception):
     """

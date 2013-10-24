@@ -19,13 +19,31 @@ __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
 import logging
+import datetime
+import time
 
 from file_utils import FileUtils
+
+def main():
+    logging.info("Reading config file...")
+    config = FileUtils.readConfig("config.xml")
+
+    #Don't do backups if we have downtime
+    if int(config.backupDowntime) != 0:
+        fileMTimeTuple = FileUtils.getLatestArchive(config.source)
+        lastBackupTime = datetime.date.fromtimestamp(fileMTimeTuple[1])
+        now = datetime.date.fromtimestamp(time.time())
+        nextBackUpTime = now + datetime.timedelta(days=int(config.backupDowntime))
+        if now >= nextBackUpTime:
+            performBackupTask(config)
+
+    performBackupCheck(config)
 
 def performBackupTask(config):
     """
     Performs backup according to provided config.
     """
+
     logging.info("PERFORMING BACKUP")
     logging.info("Archiving source directory...")
     archiveFile = FileUtils.archive(config.source)
@@ -41,23 +59,18 @@ def performBackupTask(config):
         FileUtils.cleanTmp()
 
     logging.info("BACKUP COMPLETED SUCCESSFULLY")
+    return targetArchiveFile
 
 def performBackupCheck(config):
     """
     Checks if backup was performed correctly according to specified config.
     """
     logging.info("CHECKING BACKUP")
-    logging.info("Copying latest archive to tmp dir...")
+    logging.info("Copying archive to tmp dir...")
     logging.info("Comparing tree listings...")
     logging.info("Comparing file sizes and modification dates...")
     logging.info("Sending reports...")
     logging.info("BACKUP CHECK COMPLETED SUCCESSFULLY")
-
-def main():
-    logging.info("Reading config file...")
-    config = FileUtils.readConfig("config.xml")
-    performBackupTask(config)
-    performBackupCheck(config)
 
 if __name__ == '__main__':
     #Setting up application logger
