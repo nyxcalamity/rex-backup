@@ -152,28 +152,29 @@ class FileUtils:
     def getLatestArchive(sourceDir):
         """
         Parses source contents and tries to find file which is assumed to be the latest archive.
-        Returns a tuple of the form (absoluteFilePath, modificationTimestamp)
+        Returns a tuple of the form (absoluteFilePath, modificationTimestamp) or None
         """
         if FileUtils.isValidDir(sourceDir):
             fileMTime = dict()
             for dirpath, dirnames, filenames in os.walk(sourceDir):
                 for filename in filenames:
                     fileMTime[filename] = os.path.getmtime(os.path.join(dirpath, filename))
-            fileMTimeTuple = max(fileMTime.iteritems(), key=operator.itemgetter(1))
+
+            fileMTimeTuple = max(fileMTime.items(), key=operator.itemgetter(1))
 
             return (os.path.join(sourceDir, fileMTimeTuple[0]), fileMTimeTuple[1])
 
     @staticmethod
     def isValidFile(path):
-        if not os.path.isdir(path):
-            logging.error("Provided path is not a file path.(" + path + ")")
+        if not os.path.isfile(path):
+            logging.error("Provided path is not a valid file path.(" + path + ")")
             return False
         return True
 
     @staticmethod
     def isValidDir(path):
         if not os.path.isdir(path):
-            logging.error("Provided path is not a dir path.(" + path + ")")
+            logging.error("Provided path is not a valid dir path.(" + path + ")")
             return False
         return True
 

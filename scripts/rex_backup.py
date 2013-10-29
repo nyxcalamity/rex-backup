@@ -28,16 +28,21 @@ def main():
     logging.info("Reading config file...")
     config = FileUtils.readConfig("config.xml")
 
-    #Don't do backups if we have downtime
+    #Don't do backups if we are in the downtime period
+    isDowntimePeriod = False
     if int(config.backupDowntime) != 0:
-        fileMTimeTuple = FileUtils.getLatestArchive(config.source)
-        lastBackupTime = datetime.date.fromtimestamp(fileMTimeTuple[1])
-        now = datetime.date.fromtimestamp(time.time())
-        nextBackUpTime = now + datetime.timedelta(days=int(config.backupDowntime))
-        if now >= nextBackUpTime:
-            performBackupTask(config)
+        fileMTimeTuple = FileUtils.getLatestArchive(config.target)
+        if fileMTimeTuple: #if there was no archive we don't need to check anything
+            lastBackupTime = datetime.date.fromtimestamp(fileMTimeTuple[1])
+            now = datetime.date.fromtimestamp(time.time())
+            nextBackUpTime = lastBackupTime + datetime.timedelta(days=int(config.backupDowntime))
+            if now < nextBackUpTime:
+                isDowntimePeriod = True
 
-    performBackupCheck(config)
+    if not isDowntimePeriod:
+        performBackupTask(config)
+
+    #performBackupCheck(config)
 
 def performBackupTask(config):
     """
