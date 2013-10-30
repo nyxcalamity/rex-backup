@@ -22,18 +22,18 @@ import logging
 import datetime
 import time
 import smtplib
+import fileutils
 
 from email.mime.text import MIMEText
-from file_utils import FileUtils
 
 def main():
     logging.info("Reading config file...")
-    config = FileUtils.readConfig("config.xml")
+    config = fileutils.readConfig("config.xml")
 
     #Don't do backups if we are in the downtime period
     isDowntimePeriod = False
     if int(config.backupDowntime) != 0:
-        fileMTimeTuple = FileUtils.getLatestArchiveTime(config.target)
+        fileMTimeTuple = fileutils.getLatestArchiveNameAndTime(config.target)
         if fileMTimeTuple: #if there was no archive we don't need to check anything
             lastBackupTime = datetime.date.fromtimestamp(fileMTimeTuple[1])
             now = datetime.date.fromtimestamp(time.time())
@@ -51,31 +51,30 @@ def performBackupTask(config):
     """
     Performs backup according to provided config.
     """
-    logging.info("PERFORMING BACKUP")
+    logging.info("BACKUP STARTED")
     logging.info("Archiving source directory.")
-    archiveFile = FileUtils.archive(config.source)
+    archiveFile = fileutils.archive(config.source)
     logging.info("Generating MD5 file.")
-    archiveMD5File = FileUtils.generateMD5File(archiveFile)
+    archiveMD5File = fileutils.generateMD5File(archiveFile)
     logging.info("Copying archive to the target.")
-    targetArchiveFile = FileUtils.copy(archiveFile, config.target)
+    targetArchiveFile = fileutils.copyFile(archiveFile, config.target)
     logging.info("Copying MD5 file to the target.")
-    targetArchiveMD5File = FileUtils.copy(archiveMD5File, config.target)
+    targetArchiveMD5File = fileutils.copyFile(archiveMD5File, config.target)
     logging.info("BACKUP COMPLETE")
-    return targetArchiveFile
 
 def performBackupCheck(config):
     """
     Checks if backup was performed correctly according to specified config.
     """
     logging.info("CHECKING BACKUP")
-    logging.info("Copying archive to tmp dir.")
-    latestArchiveName = FileUtils.getLatestArchiveTime(config.target)[0]
+    logging.info("Copying latest archive to tmp dir.")
+    latestArchiveName = fileutils.getLatestArchiveNameAndTime(config.target)[0]
     if not latestArchiveName:
-        logging.error("Check FAILED. No archive found.")
-    tmpArchive = FileUtils.copy(latestArchiveName, FileUtils.getTmpDir())
+        logging.error("Check FAILED. No archive file found.")
+    tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpDir())
 
     logging.info("Comparing tree listings and file modification dates.")
-    errors = FileUtils.verifyArchiveContents(tmpArchive, config.source)
+    errors = fileutils.compareArchiveContents(tmpArchive, config.source)
     if errors:
         logging.error("Inconsistencies found between archive and source.")
         logging.error("Next errors were encountered: " + errors)
@@ -96,7 +95,7 @@ def sendReport(errors):
     s = smtplib.SMTP("smtp.office365.com", 587)
     s.starttls()
     #perform login if needed
-    
+
     s.sendmail(fromAddress, [toAddress], msg.as_string())
     s.quit()
 
@@ -105,11 +104,11 @@ def performBackupCleanup(config):
     Performs a cleanup of files and directories which are no longer needed or are configured to be cleaned.
     """
     logging.info("Cleaning tmp directory.")
-    FileUtils.cleanTmp()
+    fileutils.cleanTmp()
 
 if __name__ == '__main__':
     #Setting up application logger
-    #logFile = os.path.join(FileUtils.getLogDir(), "rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log")
+    #logFile = os.path.join(fileutils.getLogDir(), "rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log")
     logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
     #Will create a new file each time application is executed
     #logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)

@@ -18,24 +18,47 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-class Config:
+class BackupConfig:
     """
     Contains backup configuration parameters.
     """
-    def __init__(self, backupDowntime='', rotationPeriod='', source=None, target=None, archive=True):
+    def __init__(self, checkerCfg=None, source=None, target=None, backupDowntime='0', rotationPeriod=None, performChecks=True,
+                 performTmpCleanup=True):
         self.source = source
         self.target = target
         self.backupDowntime = backupDowntime
         self.rotationPeriod = rotationPeriod
+        self.performChecks = performChecks
+        self.performTmpCleanup = performTmpCleanup
+        self.checkerCfg = checkerCfg
 
     def __str__(self):
-        return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+",archive="+str(self.archive)+"]"
+        return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+"]"
 
-class ConfigError(Exception):
+class CheckerConfig:
     """
-    Abstract configuration exception.
+    Contains backup checker configuration parameters.
     """
-    def __init__(self, value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
+    def __init__(self, reporter=None, sendReports=True):
+        self.reporter = reporter
+        self.sendReports = sendReports
+
+class ReporterConfig:
+    """
+    Contains reporter configuration parameters.
+    """
+    def __init__(self, fromAddress=None, toAddresses=None, subjectPrefix='', smtpCfg=None):
+        self.fromAddress = fromAddress
+        self.toAddresses = toAddresses
+        self.subjectPrefix = subjectPrefix
+        self.smtpCfg = smtpCfg
+
+class SmtpConfig:
+    """
+    Contains smtp configuration parameters.
+    """
+    def __init__(self, host=None, port=None, username=None, password=None):
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
