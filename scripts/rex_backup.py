@@ -21,7 +21,9 @@ __email__ = "denys.sobchyshak@gmail.com"
 import logging
 import datetime
 import time
+import smtplib
 
+from email.mime.text import MIMEText
 from file_utils import FileUtils
 
 def main():
@@ -58,8 +60,7 @@ def performBackupTask(config):
     targetArchiveFile = FileUtils.copy(archiveFile, config.target)
     logging.info("Copying MD5 file to the target.")
     targetArchiveMD5File = FileUtils.copy(archiveMD5File, config.target)
-
-    logging.info("BACKUP COMPLETED SUCCESSFULLY")
+    logging.info("BACKUP COMPLETE")
     return targetArchiveFile
 
 def performBackupCheck(config):
@@ -77,16 +78,33 @@ def performBackupCheck(config):
     errors = FileUtils.verifyArchiveContents(tmpArchive, config.source)
     if errors:
         logging.error("Inconsistencies found between archive and source.")
-        logging.error(errors)
+        logging.error("Next errors were encountered: " + errors)
 
-    logging.info("Sending reports...")
-    logging.info("BACKUP CHECK COMPLETED SUCCESSFULLY")
+    logging.info("Sending reports.")
+    sendReport(errors)
+    logging.info("BACKUP CHECK COMPLETE")
+
+def sendReport(errors):
+    fromAddress = "no-reply@crxmarkets.com"
+    toAddress = "denys.sobchyshak@gmail.com"
+
+    msg = MIMEText("Next errors were encountered: " + errors) if errors else MIMEText("Backup was completed successfully")
+    msg['Subject'] = "[CRX-BACKUP] Status report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+    msg['From'] = fromAddress
+    msg['To'] = toAddress
+
+    s = smtplib.SMTP("smtp.office365.com", 587)
+    s.starttls()
+    #perform login if needed
+    
+    s.sendmail(fromAddress, [toAddress], msg.as_string())
+    s.quit()
 
 def performBackupCleanup(config):
     """
     Performs a cleanup of files and directories which are no longer needed or are configured to be cleaned.
     """
-    logging.info("Cleaning tmp directory...")
+    logging.info("Cleaning tmp directory.")
     FileUtils.cleanTmp()
 
 if __name__ == '__main__':
