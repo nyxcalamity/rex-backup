@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- NOTE: It is assumed that all dates are passed in days, thus backup-downtime="3" will mean 3 days of backup-free time -->
 <backup backup-downtime="0" rotation-period="62">
-    <source>/home/nyxcalamity/ws/ws-crx/rex-backup</source>
+    <source>/home/nyxcalamity/wh</source>
     <!--<target>/mnt/nas/rex-backup</target>-->
     <target>/home/nyxcalamity/backup</target>
 </backup>

@@ -20,6 +20,7 @@ __email__ = "denys.sobchyshak@gmail.com"
 import os
 import sys
 import shutil
+import tarfile
 import time
 import datetime
 import logging
@@ -36,6 +37,9 @@ class FileUtils:
     """
     Provides major file operations like archiving, directory tree listing, config parsing and etc.
     """
+    ARCHIVE_TYPE = "gztar"
+    ARCHIVE_EXT = "tar.gz"
+    ARCHIVE_MODE = "r:gz"
 
     @staticmethod
     def getWorkingDir():
@@ -114,7 +118,7 @@ class FileUtils:
         if FileUtils.isValidDir(sourceDir):
             sourceName = os.path.basename(sourceDir) #Extracts base name
             archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
-            return make_archive(os.path.join(FileUtils.getTmpDir(),archiveName), 'gztar', sourceDir)
+            return make_archive(os.path.join(FileUtils.getTmpDir(),archiveName), FileUtils.ARCHIVE_TYPE, sourceDir)
 
     @staticmethod
     def generateMD5File(sourceFile):
@@ -149,7 +153,7 @@ class FileUtils:
             return targetFile
 
     @staticmethod
-    def getLatestArchive(sourceDir):
+    def getLatestArchiveTime(sourceDir):
         """
         Parses source contents and tries to find file which is assumed to be the latest archive.
         Returns a tuple of the form (absoluteFilePath, modificationTimestamp) or None
@@ -158,11 +162,40 @@ class FileUtils:
             fileMTime = dict()
             for dirpath, dirnames, filenames in os.walk(sourceDir):
                 for filename in filenames:
-                    fileMTime[filename] = os.path.getmtime(os.path.join(dirpath, filename))
-
+                    if filename.endswith(FileUtils.ARCHIVE_EXT):
+                        fileMTime[filename] = os.path.getmtime(os.path.join(dirpath, filename))
             fileMTimeTuple = max(fileMTime.items(), key=operator.itemgetter(1))
 
             return (os.path.join(sourceDir, fileMTimeTuple[0]), fileMTimeTuple[1])
+
+    @staticmethod
+    def verifyArchiveContents(archiveFilePath, sourceDirPath):
+        """
+        Traverses contents of the source directory and tries to find matches in tar directory.
+        Returns a list of errors or None
+        """
+        archiveFile = tarfile.open(archiveFilePath, FileUtils.ARCHIVE_MODE)
+        tarMembers = dict()
+        for member in archiveFile.getmembers():
+            tarMembers[member.name] = member.mtime
+
+        srcMembers = dict()
+        for dirPath, dirs, files in os.walk(sourceDirPath):
+            for f in files:
+                srcMembers[os.path.join(dirPath, f)] = os.path.getmtime(os.path.join(dirPath,f))
+            for d in dirs:
+                srcMembers[os.path.join(dirPath, d)] = os.path.getmtime(os.path.join(dirPath,d))
+
+        errors = []
+        for srcKey in srcMembers:
+            tarKey = srcKey.replace(sourceDirPath, ".")
+            if not (tarKey in tarMembers):
+                errors.append(tarKey + " is missing in the tar")
+            elif datetime.date.fromtimestamp(srcMembers[srcKey]) != datetime.date.fromtimestamp(tarMembers[tarKey]):
+                errors.append(tarKey + " has wrong mtime: tar=" + str(tarMembers[tarKey]) + " src=" + str(srcMembers[member]))
+
+        if len(errors) > 0:
+            return errors
 
     @staticmethod
     def isValidFile(path):

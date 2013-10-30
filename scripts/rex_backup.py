@@ -31,7 +31,7 @@ def main():
     #Don't do backups if we are in the downtime period
     isDowntimePeriod = False
     if int(config.backupDowntime) != 0:
-        fileMTimeTuple = FileUtils.getLatestArchive(config.target)
+        fileMTimeTuple = FileUtils.getLatestArchiveTime(config.target)
         if fileMTimeTuple: #if there was no archive we don't need to check anything
             lastBackupTime = datetime.date.fromtimestamp(fileMTimeTuple[1])
             now = datetime.date.fromtimestamp(time.time())
@@ -42,26 +42,22 @@ def main():
     if not isDowntimePeriod:
         performBackupTask(config)
 
-    #performBackupCheck(config)
+    performBackupCheck(config)
+    performBackupCleanup(config)
 
 def performBackupTask(config):
     """
     Performs backup according to provided config.
     """
-
     logging.info("PERFORMING BACKUP")
-    logging.info("Archiving source directory...")
+    logging.info("Archiving source directory.")
     archiveFile = FileUtils.archive(config.source)
-    logging.info("Generating MD5 file...")
+    logging.info("Generating MD5 file.")
     archiveMD5File = FileUtils.generateMD5File(archiveFile)
-    logging.info("Copying archive to the target...")
+    logging.info("Copying archive to the target.")
     targetArchiveFile = FileUtils.copy(archiveFile, config.target)
-    logging.info("Copying MD5 file to the target...")
+    logging.info("Copying MD5 file to the target.")
     targetArchiveMD5File = FileUtils.copy(archiveMD5File, config.target)
-
-    if targetArchiveFile and targetArchiveMD5File:
-        logging.info("Cleaning tmp directory...")
-        FileUtils.cleanTmp()
 
     logging.info("BACKUP COMPLETED SUCCESSFULLY")
     return targetArchiveFile
@@ -71,11 +67,27 @@ def performBackupCheck(config):
     Checks if backup was performed correctly according to specified config.
     """
     logging.info("CHECKING BACKUP")
-    logging.info("Copying archive to tmp dir...")
-    logging.info("Comparing tree listings...")
-    logging.info("Comparing file sizes and modification dates...")
+    logging.info("Copying archive to tmp dir.")
+    latestArchiveName = FileUtils.getLatestArchiveTime(config.target)[0]
+    if not latestArchiveName:
+        logging.error("Check FAILED. No archive found.")
+    tmpArchive = FileUtils.copy(latestArchiveName, FileUtils.getTmpDir())
+
+    logging.info("Comparing tree listings and file modification dates.")
+    errors = FileUtils.verifyArchiveContents(tmpArchive, config.source)
+    if errors:
+        logging.error("Inconsistencies found between archive and source.")
+        logging.error(errors)
+
     logging.info("Sending reports...")
     logging.info("BACKUP CHECK COMPLETED SUCCESSFULLY")
+
+def performBackupCleanup(config):
+    """
+    Performs a cleanup of files and directories which are no longer needed or are configured to be cleaned.
+    """
+    logging.info("Cleaning tmp directory...")
+    FileUtils.cleanTmp()
 
 if __name__ == '__main__':
     #Setting up application logger
