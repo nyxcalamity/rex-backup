@@ -44,7 +44,9 @@ def main():
     if not isDowntimePeriod:
         performBackupTask(config)
 
-    performBackupCheck(config)
+    if config.performChecks:
+        performBackupCheck(config)
+
     performBackupCleanup(config)
 
 def performBackupTask(config):
@@ -79,32 +81,31 @@ def performBackupCheck(config):
         logging.error("Inconsistencies found between archive and source.")
         logging.error("Next errors were encountered: " + errors)
 
-    logging.info("Sending reports.")
-    sendReport(errors)
+    if (config.checkerConfig.sendReports):
+        logging.info("Sending reports.")
+        sendReport(errors, config.checkerConfig.reporterConfig)
     logging.info("BACKUP CHECK COMPLETE")
 
-def sendReport(errors):
-    fromAddress = "no-reply@crxmarkets.com"
-    toAddress = "denys.sobchyshak@gmail.com"
-
+def sendReport(errors, reporterConfig):
     msg = MIMEText("Next errors were encountered: " + errors) if errors else MIMEText("Backup was completed successfully")
-    msg['Subject'] = "[CRX-BACKUP] Status report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
-    msg['From'] = fromAddress
-    msg['To'] = toAddress
+    msg['Subject'] = reporterConfig.subjectPrefix + "Status report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+    msg['From'] = reporterConfig.fromAddress
+    msg['To'] = reporterConfig.toAddress
 
-    s = smtplib.SMTP("smtp.office365.com", 587)
+    s = smtplib.SMTP(reporterConfig.smtpConfig.host, reporterConfig.smtpConfig.port)
     s.starttls()
-    #perform login if needed
-
-    s.sendmail(fromAddress, [toAddress], msg.as_string())
+    s.login(reporterConfig.smtpConfig.username, reporterConfig.smtpConfig.password)
+    s.sendmail(reporterConfig.fromAddress, reporterConfig.toAddress.split(","), msg.as_string())
     s.quit()
 
 def performBackupCleanup(config):
     """
     Performs a cleanup of files and directories which are no longer needed or are configured to be cleaned.
     """
-    logging.info("Cleaning tmp directory.")
-    fileutils.cleanTmp()
+    if config.performTmpCleanup:
+        logging.info("Cleaning tmp directory.")
+        fileutils.cleanTmp()
+    #TODO:rotate archives
 
 if __name__ == '__main__':
     #Setting up application logger

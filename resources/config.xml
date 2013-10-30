@@ -5,7 +5,7 @@
     <source>/home/nyxcalamity/wh</source>
     <target>/home/nyxcalamity/backup</target>
     <checker send-reports="true">
-        <reporter from="no-reply@crxmarkets.com" to="denys.sobchyshak@gmail.com" subject-perfix="[CRX-BACKUP]">
+        <reporter from-address="no-reply@crxmarkets.com" to-address="denys.sobchyshak@gmail.com" subject-prefix="[CRX-BACKUP]">
             <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="" />
         </reporter>
     </checker>

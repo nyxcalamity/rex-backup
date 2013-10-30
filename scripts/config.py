@@ -22,7 +22,7 @@ class BackupConfig:
     """
     Contains backup configuration parameters.
     """
-    def __init__(self, checkerCfg=None, source=None, target=None, backupDowntime='0', rotationPeriod=None, performChecks=True,
+    def __init__(self, checkerConfig=None, source=None, target=None, backupDowntime='0', rotationPeriod=None, performChecks=True,
                  performTmpCleanup=True):
         self.source = source
         self.target = target
@@ -30,7 +30,7 @@ class BackupConfig:
         self.rotationPeriod = rotationPeriod
         self.performChecks = performChecks
         self.performTmpCleanup = performTmpCleanup
-        self.checkerCfg = checkerCfg
+        self.checkerConfig = checkerConfig
 
     def __str__(self):
         return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+"]"
@@ -39,19 +39,19 @@ class CheckerConfig:
     """
     Contains backup checker configuration parameters.
     """
-    def __init__(self, reporter=None, sendReports=True):
-        self.reporter = reporter
+    def __init__(self, reporterConfig=None, sendReports=True):
+        self.reporterConfig = reporterConfig
         self.sendReports = sendReports
 
 class ReporterConfig:
     """
     Contains reporter configuration parameters.
     """
-    def __init__(self, fromAddress=None, toAddresses=None, subjectPrefix='', smtpCfg=None):
+    def __init__(self, fromAddress=None, toAddress=None, subjectPrefix='', smtpConfig=None):
         self.fromAddress = fromAddress
-        self.toAddresses = toAddresses
+        self.toAddress = toAddress
         self.subjectPrefix = subjectPrefix
-        self.smtpCfg = smtpCfg
+        self.smtpConfig = smtpConfig
 
 class SmtpConfig:
     """

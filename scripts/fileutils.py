@@ -29,7 +29,7 @@ import operator
 from xml.dom.minidom import parse
 from shutil import make_archive
 
-from config import BackupConfig
+from config import *
 
 ARCHIVE_TYPE = "gztar"
 ARCHIVE_EXT = "tar.gz"
@@ -81,10 +81,33 @@ def readConfig(fileName):
             backup = dom.getElementsByTagName("backup")[0]
             if backup.hasAttribute("backup-downtime"): config.backupDowntime = int(backup.getAttribute("backup-downtime"))
             if backup.hasAttribute("rotation-period"): config.rotationPeriod = int(backup.getAttribute("rotation-period"))
+            if backup.hasAttribute("perform-checks"): config.performChecks = bool(backup.getAttribute("perform-checks"))
+            if backup.hasAttribute("perform-tmp-cleanup"): config.performTmpCleanup = bool(backup.getAttribute("perform-tmp-cleanup"))
             config.source = backup.getElementsByTagName("source")[0].childNodes[0].data
             config.target = backup.getElementsByTagName("target")[0].childNodes[0].data
+
+            checkerConfig = CheckerConfig()
+            checker = backup.getElementsByTagName("checker")[0]
+            if checker.hasAttribute("send-reports"): checkerConfig.sendReports = bool(checker.getAttribute("send-reports"))
+            config.checkerConfig = checkerConfig
+
+            reporterConfig = ReporterConfig()
+            reporter = checker.getElementsByTagName("reporter")[0]
+            if reporter.hasAttribute("from-address"): reporterConfig.fromAddress = reporter.getAttribute("from-address")
+            if reporter.hasAttribute("to-address"): reporterConfig.toAddress = reporter.getAttribute("to-address")
+            if reporter.hasAttribute("subject-prefix"): reporterConfig.subjectPrefix = reporter.getAttribute("subject-prefix")
+            checkerConfig.reporterConfig = reporterConfig
+
+            smtpConfig = SmtpConfig()
+            smtp = reporter.getElementsByTagName("smtp")[0]
+            if smtp.hasAttribute("host"): smtpConfig.host = smtp.getAttribute("host")
+            if smtp.hasAttribute("port"): smtpConfig.port = smtp.getAttribute("port")
+            if smtp.hasAttribute("username"): smtpConfig.username = smtp.getAttribute("username")
+            if smtp.hasAttribute("password"): smtpConfig.password = smtp.getAttribute("password")
+            reporterConfig.smtpConfig = smtpConfig
+
         except Exception:
-            logging.error("An error occured while trying to parse configuration file. Please check it's formatting and contents.")
+            logging.error("An error occurred while trying to parse configuration file. Please check it's formatting and contents.")
 
         return config
     else:
