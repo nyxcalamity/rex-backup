@@ -92,7 +92,7 @@ def sendReport(errors, reporterConfig):
     msg['From'] = reporterConfig.fromAddress
     msg['To'] = reporterConfig.toAddress
 
-    s = smtplib.SMTP(reporterConfig.smtpConfig.host, reporterConfig.smtpConfig.port)
+    s = smtplib.SMTP(reporterConfig.smtpConfig.host, int(reporterConfig.smtpConfig.port))
     s.starttls()
     s.login(reporterConfig.smtpConfig.username, reporterConfig.smtpConfig.password)
     s.sendmail(reporterConfig.fromAddress, reporterConfig.toAddress.split(","), msg.as_string())

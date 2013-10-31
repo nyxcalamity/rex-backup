@@ -1,6 +1,7 @@
 Linux share mount example:
 sudo mkdir -p /mnt/nas
-sudo mount -t cifs //192.168.178.49/public -o rw,username=name,dom=domain,password=pword /mnt/nas
+sudo mount -t cifs //192.168.178.49/public -o uid=1000,username=uname,dom=CRXMARKETS,password=pword /mnt/nas
+
 
 Rsync command example:
 sudo rsync -zWrlpDq --delete /home/user/ws/ws-crx/rex-backup/ /mnt/nas/rex-backup
