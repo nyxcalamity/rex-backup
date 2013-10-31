@@ -25,7 +25,7 @@ import time
 import datetime
 import logging
 import hashlib
-import operator
+import re
 from xml.dom.minidom import parse
 from shutil import make_archive
 
@@ -33,6 +33,8 @@ from config import *
 
 ARCHIVE_TYPE = "gztar"
 ARCHIVE_EXT = "tar.gz"
+ARCHIVE_EXT_PATTERN = "\.tar\.gz"
+ARCHIVE_NAME_PATTERN = "^.*-\d+"+ARCHIVE_EXT_PATTERN+"$"
 ARCHIVE_MODE = "r:gz"
 
 def getWorkingDir():
@@ -153,20 +155,25 @@ def copyFile(sourceFile, targetDir):
         shutil.copyfile(sourceFile, targetFile)
         return targetFile
 
-def getLatestArchiveNameAndTime(sourceDir):
+def getArchives(sourceDir):
     """
-    Parses source contents and tries to find file which is assumed to be the latest archive.
-    Returns a tuple of the form (absoluteFilePath, modificationTimestamp) or None
+    Searches sourceDir for archive files.
     """
     if isValidDir(sourceDir):
-        fileMTime = dict()
+        archives = []
         for dirpath, dirnames, filenames in os.walk(sourceDir):
             for filename in filenames:
-                if filename.endswith(ARCHIVE_EXT):
-                    fileMTime[filename] = os.path.getmtime(os.path.join(dirpath, filename))
-        fileMTimeTuple = max(fileMTime.items(), key=operator.itemgetter(1))
+                if re.search(ARCHIVE_NAME_PATTERN, filename):
+                    archives.append(os.path.join(dirpath, filename))
+        return archives
 
-        return (os.path.join(sourceDir, fileMTimeTuple[0]), fileMTimeTuple[1])
+def parseArchiveDate(fileName):
+    """
+    Finds date in the filename and returns a datetime object.
+    """
+    m = re.search("(?<=-)(\d+)(?="+ARCHIVE_EXT_PATTERN+")", fileName)
+    return datetime.datetime.strptime(m.group(0), "%Y%m%d%H%M")
+
 
 def compareArchiveContents(archiveFilePath, sourceDirPath):
     """

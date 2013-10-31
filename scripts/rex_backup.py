@@ -22,9 +22,11 @@ import logging
 import datetime
 import time
 import smtplib
+import operator
+from email.mime.text import MIMEText
+
 import fileutils
 
-from email.mime.text import MIMEText
 
 def main():
     logging.info("Reading config file...")
@@ -33,9 +35,9 @@ def main():
     #Don't do backups if we are in the downtime period
     isDowntimePeriod = False
     if int(config.backupDowntime) != 0:
-        fileMTimeTuple = fileutils.getLatestArchiveNameAndTime(config.target)
-        if fileMTimeTuple: #if there was no archive we don't need to check anything
-            lastBackupTime = datetime.date.fromtimestamp(fileMTimeTuple[1])
+        archiveTimeTuple = getNewestArchiveNameAndTime(config.target)
+        if archiveTimeTuple: #if there was no archive we don't need to check anything
+            lastBackupTime = archiveTimeTuple[1].date()
             now = datetime.date.fromtimestamp(time.time())
             nextBackUpTime = lastBackupTime + datetime.timedelta(days=int(config.backupDowntime))
             if now < nextBackUpTime:
@@ -70,7 +72,7 @@ def performBackupCheck(config):
     """
     logging.info("CHECKING BACKUP")
     logging.info("Copying latest archive to tmp dir.")
-    latestArchiveName = fileutils.getLatestArchiveNameAndTime(config.target)[0]
+    latestArchiveName = getNewestArchiveNameAndTime(config.target)[0]
     if not latestArchiveName:
         logging.error("Check FAILED. No archive file found.")
     tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpDir())
@@ -105,7 +107,22 @@ def performBackupCleanup(config):
     if config.performTmpCleanup:
         logging.info("Cleaning tmp directory.")
         fileutils.cleanTmp()
-    #TODO:rotate archives
+
+    if int(config.rotationPeriod) != 0:
+        pass
+
+
+def getNewestArchiveNameAndTime(sourceDir):
+    """
+    Parses source contents and tries to find file which is assumed to be the latest archive.
+    Returns a tuple of the form (absoluteFilePath, modificationTimestamp) or None
+    """
+    archives = fileutils.getArchives(sourceDir)
+    archiveDates = dict()
+    for archive in archives:
+        archiveDates[archive] = fileutils.parseArchiveDate(archive)
+    return max(archiveDates.items(), key=operator.itemgetter(1))
+
 
 if __name__ == '__main__':
     #Setting up application logger
