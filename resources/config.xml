@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- NOTE: It is assumed that all dates are passed in days, thus backup-downtime="3" will mean 3 days of backup-free time -->
-<backup backup-downtime="0" rotation-period="62" perform-checks="true" perform-tmp-cleanup="true">
-    <!--<target>/mnt/nas/rex-backup</target>-->
+<!-- NOTE: Please follow next rules:
+    - It is assumed that all dates are passed in days, thus backup-downtime="3" will mean 3 days of backup-free time.
+    - Use empty strings for false values and "true" for true values.
+      For more information see http://docs.python.org/2/library/stdtypes.html -->
+<backup backup-downtime="0" rotation-period="90" perform-checks="true" perform-tmp-cleanup="true">
     <source>/home/nyxcalamity/wh</source>
-    <target>/home/nyxcalamity/backup</target>
-    <checker send-reports="true">
+    <target>/mnt/nas/rex-backup</target>
+    <checker send-reports="">
         <reporter from-address="no-reply@crxmarkets.com" to-address="denys.sobchyshak@gmail.com" subject-prefix="[CRX-BACKUP]">
             <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="" />
         </reporter>
