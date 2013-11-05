@@ -27,7 +27,6 @@ from email.mime.text import MIMEText
 
 import fileutils
 
-
 def main():
     logging.info("Reading config file...")
     config = fileutils.readConfig("config.xml")
@@ -49,7 +48,11 @@ def main():
     if config.performChecks:
         performBackupCheck(config)
 
-    performBackupCleanup(config)
+    if config.performTmpCleanup:
+        performBackupCleanup()
+
+    if int(config.rotationPeriod) != 0:
+        performArchiveFilesRotation(config)
 
 def performBackupTask(config):
     """
@@ -57,13 +60,13 @@ def performBackupTask(config):
     """
     logging.info("BACKUP STARTED")
     logging.info("Archiving source directory.")
-    archiveFile = fileutils.archive(config.source)
-    logging.info("Generating MD5 file.")
-    archiveMD5File = fileutils.generateMD5File(archiveFile)
+    archiveFile = fileutils.archiveDir(config.source)
+    #logging.info("Generating MD5 file.")
+    #archiveMD5File = fileutils.generateMD5File(archiveFile)
     logging.info("Copying archive to the target.")
     targetArchiveFile = fileutils.copyFile(archiveFile, config.target)
-    logging.info("Copying MD5 file to the target.")
-    targetArchiveMD5File = fileutils.copyFile(archiveMD5File, config.target)
+    #logging.info("Copying MD5 file to the target.")
+    #targetArchiveMD5File = fileutils.copyFile(archiveMD5File, config.target)
     logging.info("BACKUP COMPLETE")
 
 def performBackupCheck(config):
@@ -83,7 +86,7 @@ def performBackupCheck(config):
         logging.error("Inconsistencies found between archive and source.")
         logging.error("Next errors were encountered: " + errors)
 
-    if (config.checkerConfig.sendReports):
+    if config.checkerConfig.sendReports:
         logging.info("Sending reports.")
         sendReport(errors, config.checkerConfig.reporterConfig)
     logging.info("BACKUP CHECK COMPLETE")
@@ -100,28 +103,49 @@ def sendReport(errors, reporterConfig):
     s.sendmail(reporterConfig.fromAddress, reporterConfig.toAddress.split(","), msg.as_string())
     s.quit()
 
-def performBackupCleanup(config):
+def performBackupCleanup():
     """
-    Performs a cleanup of files and directories which are no longer needed or are configured to be cleaned.
+    Performs a cleanup of files and directories which are no longer needed.
     """
-    if config.performTmpCleanup:
-        logging.info("Cleaning tmp directory.")
-        fileutils.cleanTmp()
+    logging.info("Cleaning up tmp directory.")
+    fileutils.cleanTmp()
 
-    if int(config.rotationPeriod) != 0:
-        pass
+def performArchiveFilesRotation(config):
+    """
+    Removes archives which are too old to be stored.
+    """
+    logging.info("Cleaning up old archives.")
+    archivesToRemove = []
 
+    archiveDates = getArchiveNamesAndTimes(config.target)
+    newestArchiveDate = max(archiveDates.items(), key=operator.itemgetter(1))[1]
+    oldestArchiveDate = newestArchiveDate-datetime.timedelta(days=config.rotationPeriod)
+
+    for archive in archiveDates.keys():
+        if oldestArchiveDate > archiveDates[archive]:
+            archivesToRemove.append(archive)
+
+    for archive in archivesToRemove:
+        fileutils.removeFile(archive)
+    logging.info(str(len(archivesToRemove)) + " old archives were removed.")
 
 def getNewestArchiveNameAndTime(sourceDir):
     """
     Parses source contents and tries to find file which is assumed to be the latest archive.
     Returns a tuple of the form (absoluteFilePath, modificationTimestamp) or None
     """
-    archives = fileutils.getArchives(sourceDir)
+    archiveDates = getNewestArchiveNameAndTime(sourceDir)
+    return max(archiveDates.items(), key=operator.itemgetter(1))
+
+def getArchiveNamesAndTimes(sourceDir):
+    """
+    Traverses the sourceDir and creates a dict with archive file names as keys and their creation date as value.
+    """
+    archives = fileutils.getArchiveFiles(sourceDir)
     archiveDates = dict()
     for archive in archives:
         archiveDates[archive] = fileutils.parseArchiveDate(archive)
-    return max(archiveDates.items(), key=operator.itemgetter(1))
+    return archiveDates
 
 
 if __name__ == '__main__':

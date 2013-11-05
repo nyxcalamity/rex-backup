@@ -115,7 +115,7 @@ def readConfig(fileName):
     else:
         logging.error("Could not locate specified configuration file.")
 
-def archive(sourceDir):
+def archiveDir(sourceDir):
     """
     Performs an archiving operation on the source dir and stores the archive in the working_dir/tmp. Returns an absolute
     path to the archived file.
@@ -155,7 +155,15 @@ def copyFile(sourceFile, targetDir):
         shutil.copyfile(sourceFile, targetFile)
         return targetFile
 
-def getArchives(sourceDir):
+def removeFile(filePath):
+    """
+    Removes a file from the FS. Returns true if succeeded and None otherwise.
+    """
+    if isValidFile(filePath):
+        os.remove(filePath)
+        return True
+
+def getArchiveFiles(sourceDir):
     """
     Searches sourceDir for archive files.
     """
@@ -173,7 +181,6 @@ def parseArchiveDate(fileName):
     """
     m = re.search("(?<=-)(\d+)(?="+ARCHIVE_EXT_PATTERN+")", fileName)
     return datetime.datetime.strptime(m.group(0), "%Y%m%d%H%M")
-
 
 def compareArchiveContents(archiveFilePath, sourceDirPath):
     """
@@ -198,7 +205,7 @@ def compareArchiveContents(archiveFilePath, sourceDirPath):
         if not (tarKey in tarMembers):
             errors.append(tarKey + " is missing in the tar")
         elif datetime.date.fromtimestamp(srcMembers[srcKey]) != datetime.date.fromtimestamp(tarMembers[tarKey]):
-            errors.append(tarKey + " has wrong mtime: tar=" + str(tarMembers[tarKey]) + " src=" + str(srcMembers[member]))
+            errors.append(tarKey + " has wrong mtime: tar=" + str(tarMembers[tarKey]) + " src=" + str(srcMembers[srcKey]))
 
     if len(errors) > 0:
         return errors
