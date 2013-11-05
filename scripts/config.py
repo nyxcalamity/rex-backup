@@ -18,30 +18,28 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
+class RexConfig:
+    """
+    Contains script configuration parameters.
+    """
+    def __init__(self, reporterConfig=None, backups=None, rotationPeriod=None, performChecks=True, performReporting=False):
+        self.backups=backups
+        self.rotationPeriod = rotationPeriod
+        self.performChecks = performChecks
+        self.performReporting = performReporting
+        self.reporterConfig = reporterConfig
+
 class BackupConfig:
     """
     Contains backup configuration parameters.
     """
-    def __init__(self, checkerConfig=None, source=None, target=None, backupDowntime='0', rotationPeriod=None, performChecks=True,
-                 performTmpCleanup=True):
+    def __init__(self, source=None, target=None, backupDowntime='0'):
         self.source = source
         self.target = target
         self.backupDowntime = backupDowntime
-        self.rotationPeriod = rotationPeriod
-        self.performChecks = performChecks
-        self.performTmpCleanup = performTmpCleanup
-        self.checkerConfig = checkerConfig
 
     def __str__(self):
-        return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+"]"
-
-class CheckerConfig:
-    """
-    Contains backup checker configuration parameters.
-    """
-    def __init__(self, reporterConfig=None, sendReports=True):
-        self.reporterConfig = reporterConfig
-        self.sendReports = sendReports
+        return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+",downtime="+str(self.backupDowntime) +"]"
 
 class ReporterConfig:
     """

@@ -1,24 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-backup-downtime     - is a period of the backup free time, meaning that no backup should be performed for stated amount of time
-rotation-period     - is number of days during which an archive should be stored in the target. If an archive resides in target
-                    longer than specified rotation-period it will be deleted
+rotation-period     - is number of days during which an archive should be stored in the target. If an archive resides in
+                    target longer than specified rotation-period it will be deleted
 perform-checks      - identifies if the archive integrity checks will be performed after backup or not (to address possible
                     packet losses during network data transfer)
-perform-tmp-cleanup - identifies if the temporary folder should be cleaned after backup or not. All the archives are stored
-                    in tm folder before they are copied to the target location
-send-reports        - identifies if email reports should be sent or not
+perform-reporting   - identifies if reporting will be performed or not
+backup-downtime     - is a number of days of a backup free time, meaning that no backup should be performed for stated
+                    amount of time since the previous backup was made (Example: if it is set to 3 and backup was performed
+                    on 2013.11.05 then next one will be performed on 2013.11.08)
 
 NOTE: Please follow next rules:
     - It is assumed that all dates are passed in days, thus backup-downtime="3" will mean 3 days of backup-free time.
     - Use empty strings for false values and "true" for true values.
       For more information on python truth values see http://docs.python.org/2/library/stdtypes.html -->
-<backup backup-downtime="0" rotation-period="90" perform-checks="true" perform-tmp-cleanup="true">
-    <source>/home/nyxcalamity/wh</source>
-    <target>/mnt/nas/rex-backup</target>
-    <checker send-reports="">
-        <reporter from-address="no-reply@crxmarkets.com" to-address="denys.sobchyshak@gmail.com" subject-prefix="[CRX-BACKUP]">
-            <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="" />
-        </reporter>
-    </checker>
-</backup>
+<config rotation-period="90" perform-checks="true" perform-reporting="true">
+    <backups>
+        <backup backup-downtime="0">
+            <source>/home/nyxcalamity/wh</source>
+            <target>/mnt/nas/rex-backup</target>
+        </backup>
+        <backup backup-downtime="0">
+            <source>/home/nyxcalamity/bin</source>
+            <target>/mnt/nas/rex-backup</target>
+        </backup>
+        <!-- Add more backups if needed -->
+    </backups>
+    <reporter from-address="no-reply@crxmarkets.com" to-address="denys.sobchyshak@gmail.com,sobchyshak@crxmarkets.com" subject-prefix="[CRX-BACKUP]">
+        <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="" />
+    </reporter>
+</config>

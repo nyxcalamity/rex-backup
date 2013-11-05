@@ -78,28 +78,33 @@ def readConfig(fileName):
         dom = parse(configFile)
 
         #Filling in config values from xml ET
-        config = BackupConfig()
+        rexConfig = RexConfig()
         try:
-            backup = dom.getElementsByTagName("backup")[0]
-            if backup.hasAttribute("backup-downtime"): config.backupDowntime = int(backup.getAttribute("backup-downtime"))
-            if backup.hasAttribute("rotation-period"): config.rotationPeriod = int(backup.getAttribute("rotation-period"))
-            if backup.hasAttribute("perform-checks"): config.performChecks = bool(backup.getAttribute("perform-checks"))
-            if backup.hasAttribute("perform-tmp-cleanup"): config.performTmpCleanup = bool(backup.getAttribute("perform-tmp-cleanup"))
-            config.source = backup.getElementsByTagName("source")[0].childNodes[0].data
-            config.target = backup.getElementsByTagName("target")[0].childNodes[0].data
+            #Parsing general configuration
+            config = dom.getElementsByTagName("config")[0]
+            if config.hasAttribute("rotation-period"): rexConfig.rotationPeriod = int(config.getAttribute("rotation-period"))
+            if config.hasAttribute("perform-checks"): rexConfig.performChecks = bool(config.getAttribute("perform-checks"))
+            if config.hasAttribute("perform-reporting"): rexConfig.performReporting = bool(config.getAttribute("perform-reporting"))
 
-            checkerConfig = CheckerConfig()
-            checker = backup.getElementsByTagName("checker")[0]
-            if checker.hasAttribute("send-reports"): checkerConfig.sendReports = bool(checker.getAttribute("send-reports"))
-            config.checkerConfig = checkerConfig
+            #Parsing configuration of backups
+            rexConfig.backups = []
+            backups = config.getElementsByTagName("backups")[0]
+            for backup in backups.getElementsByTagName("backup"):
+                backupCfg = BackupConfig()
+                if backup.hasAttribute("backup-downtime"): backupCfg.backupDowntime = int(backup.getAttribute("backup-downtime"))
+                backupCfg.source = backup.getElementsByTagName("source")[0].childNodes[0].data
+                backupCfg.target = backup.getElementsByTagName("target")[0].childNodes[0].data
+                rexConfig.backups.append(backupCfg)
 
+            #Parsing configuration of reporter
             reporterConfig = ReporterConfig()
-            reporter = checker.getElementsByTagName("reporter")[0]
+            reporter = config.getElementsByTagName("reporter")[0]
             if reporter.hasAttribute("from-address"): reporterConfig.fromAddress = reporter.getAttribute("from-address")
             if reporter.hasAttribute("to-address"): reporterConfig.toAddress = reporter.getAttribute("to-address")
             if reporter.hasAttribute("subject-prefix"): reporterConfig.subjectPrefix = reporter.getAttribute("subject-prefix")
-            checkerConfig.reporterConfig = reporterConfig
+            rexConfig.reporterConfig = reporterConfig
 
+            #Parsing smtp configuration
             smtpConfig = SmtpConfig()
             smtp = reporter.getElementsByTagName("smtp")[0]
             if smtp.hasAttribute("host"): smtpConfig.host = smtp.getAttribute("host")
@@ -111,7 +116,7 @@ def readConfig(fileName):
         except Exception:
             logging.error("An error occurred while trying to parse configuration file. Please check it's formatting and contents.")
 
-        return config
+        return rexConfig
     else:
         logging.error("Could not locate specified configuration file.")
 
