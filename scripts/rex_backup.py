@@ -84,14 +84,14 @@ def performBackupCheck(backupConfig):
     errors = fileutils.compareArchiveContents(tmpArchive, backupConfig.source)
     if errors:
         logging.error("Inconsistencies found between archive and source.")
-        logging.error("Next errors were encountered: ".join(errors))
+        logging.error("Next errors were encountered: \n" + "\n".join(errors))
     logging.info("Backup check completed")
 
 def performReporting(errors, reporterConfig):
     """
     Performs email reporting.
     """
-    msg = MIMEText("Next errors were encountered: " + errors) if errors else MIMEText("Backup was completed successfully")
+    msg = MIMEText("Next errors were encountered: \n" + "\n".join(errors)) if errors else MIMEText("Backup was completed successfully")
     msg['Subject'] = reporterConfig.subjectPrefix + "Status report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
     msg['From'] = reporterConfig.fromAddress
     msg['To'] = reporterConfig.toAddress

@@ -189,20 +189,23 @@ def parseArchiveDate(fileName):
 
 def compareArchiveContents(archiveFilePath, sourceDirPath):
     """
-    Traverses contents of the source directory and tries to find matches in tar directory.
-    Returns a list of errors or None
+    Traverses contents of the source directory and tries to find matches in the archive. Will ignore links. Returns a
+    list of errors or None.
     """
     archiveFile = tarfile.open(archiveFilePath, ARCHIVE_MODE)
     tarMembers = dict()
     for member in archiveFile.getmembers():
         tarMembers[member.name] = member.mtime
 
+    #TODO: think of a more elegant way of ignoring symlinks (not adding them to archive at all?)
     srcMembers = dict()
     for dirPath, dirs, files in os.walk(sourceDirPath):
         for f in files:
-            srcMembers[os.path.join(dirPath, f)] = os.path.getmtime(os.path.join(dirPath,f))
+            if not os.path.islink(os.path.join(dirPath, f)):
+                srcMembers[os.path.join(dirPath, f)] = os.path.getmtime(os.path.join(dirPath,f))
         for d in dirs:
-            srcMembers[os.path.join(dirPath, d)] = os.path.getmtime(os.path.join(dirPath,d))
+            if not os.path.islink(os.path.join(dirPath, d)):
+                srcMembers[os.path.join(dirPath, d)] = os.path.getmtime(os.path.join(dirPath,d))
 
     errors = []
     for srcKey in srcMembers:
@@ -210,7 +213,7 @@ def compareArchiveContents(archiveFilePath, sourceDirPath):
         if not (tarKey in tarMembers):
             errors.append(tarKey + " is missing in the tar")
         elif datetime.date.fromtimestamp(srcMembers[srcKey]) != datetime.date.fromtimestamp(tarMembers[tarKey]):
-            errors.append(tarKey + " has wrong mtime: tar=" + str(tarMembers[tarKey]) + " src=" + str(srcMembers[srcKey]))
+            errors.append(tarKey + " has wrong mtime timestamp: tar=" + str(tarMembers[tarKey]) + " src=" + str(srcMembers[srcKey]))
 
     if len(errors) > 0:
         return errors
