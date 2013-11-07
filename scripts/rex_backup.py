@@ -75,6 +75,7 @@ def performBackupTask(backupConfig):
         logging.info("Backup complete")
         return ["SUCCESS: Completed backup for: " + backupConfig.__str__()]
     except Exception as ex:
+        logging.error("Next exception was encountered: \n" + ex.__str__())
         return ["FAILED: Could not perform backup for: " + backupConfig.__str__(), ex.__str__()]
 
 def performBackupCheck(backupConfig):
@@ -100,6 +101,7 @@ def performBackupCheck(backupConfig):
         logging.info("Backup check completed")
         return errors
     except Exception as ex:
+        logging.error("Next exception was encountered: \n" + ex.__str__())
         return ["FAILED: Could not perform backup check for: " + backupConfig.__str__(), ex.__str__()]
 
 def performReporting(errors, reporterConfig):
@@ -143,6 +145,7 @@ def performBackupCleanup(config):
                 logging.info("Cleaning up old archives at "+backup.target+". Removed a total of "+str(len(archivesToRemove))+" files")
             return ["SUCCESS: Completed archive rotation. Removed a total of " + str(totalRemoved) + " old archives."]
     except Exception as ex:
+        logging.error("Next exception was encountered: \n" + ex.__str__())
         return ["FAILED: Could not perform backup cleanup", ex.__str__()]
 
 def getNewestArchiveNameAndTime(dirPath):
