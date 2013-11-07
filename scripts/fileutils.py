@@ -130,7 +130,7 @@ def readConfig(fileName):
             if smtp.hasAttribute("password"): smtpConfig.password = smtp.getAttribute("password")
             reporterConfig.smtpConfig = smtpConfig
 
-        except Exception:
+        except Exception as ex:
             logging.error("An error occurred while trying to parse configuration file. Please check it's formatting and contents.")
 
         return rexConfig

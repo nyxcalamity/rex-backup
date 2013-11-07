@@ -23,18 +23,40 @@ import datetime
 import time
 import smtplib
 import operator
+import socket
 from email.mime.text import MIMEText
 
 import fileutils
+
+class Status:
+    SUCCESS = "OK"
+    SKIPPED = "SKIPPED"
+    FAILED = "FAILED"
+
+class Messages:
+    FAILED = "Failed to perform %(what)s on %(where)s."
+    SUCCESS = "Successfully performed %(what)s on %(where)s."
+    SKIPPED = "Skipped %(what)s on %(where)s."
+
+class Tasks:
+    BACKUP = "BackupTask"
+    CHECK = "BackupCheckTask"
+    CLEANUP = "CleanupTask"
+
+messages = []
+status = Status.SUCCESS
 
 def main():
     logging.info("Reading config file...")
     config = fileutils.readConfig("config.xml")
 
-    messages = []
     #Processing backups
     if len(config.backups) > 0:
+        skipCount = 0
         for backup in config.backups:
+            backupStatus = (Status.SKIPPED, "")
+            checkStatus = (Status.SKIPPED, "")
+
             #Don't do backups if we are in the downtime period
             isDowntimePeriod = False
             if int(backup.backupDowntime) != 0:
@@ -46,66 +68,102 @@ def main():
                     if now < nextBackUpTime:
                         isDowntimePeriod = True
             if not isDowntimePeriod:
-                messages.extend(performBackupTask(backup))
-                v = input("Enter something: ")
+                backupStatus = performBackupTask(backup)
                 if config.performChecks:
-                    messages.extend(performBackupCheck(backup))
+                    checkStatus = performBackupCheck(backup)
+            else:
+                skipCount+=1
+            #Adding messages for reporting
+            addMessage(backupStatus, Tasks.BACKUP, backup.source)
+            addMessage(checkStatus, Tasks.CHECK, backup.source)
 
-    messages.extend(performBackupCleanup(config))
+        if skipCount == len(config.backups): status = Status.SKIPPED
+
+    cleanupStatus = performBackupCleanup(config)
+    addMessage(cleanupStatus, Tasks.CLEANUP, fileutils.getTmpDir())
 
     if config.performReporting:
         performReporting(messages, config.reporterConfig)
+
+def addMessage(statusTuple, taskType, location):
+    """
+    Adds provided info to the messages.
+    """
+    template = getTemplateByStatus(statusTuple[0])
+    messages.append(statusTuple[0] + ": " + (template % {"what": taskType, "where": location}) + "\n" + statusTuple[1])
+
+def getGlobalStatus():
+    """
+    Parses global status and messages and determines real status of a backup.
+    """
+    if status == Status.SKIPPED:
+        return status
+    for m in messages:
+        if m.startswith(Status.FAILED):
+            return Status.FAILED
+    return Status.SUCCESS
+
+def getTemplateByStatus(status):
+    """
+    Parses status and return corresponding template
+    """
+    if status == Status.SUCCESS:
+        return Messages.SUCCESS
+    elif status == Status.FAILED:
+        return Messages.FAILED
+    elif status == Status.SKIPPED:
+        return Messages.SKIPPED
 
 def performBackupTask(backupConfig):
     """
     Performs backup according to provided config.
     """
     try:
-        logging.info("Started backup for: " + backupConfig.__str__())
+        logging.info("Backing up " + backupConfig.__str__())
         logging.info("Archiving source directory")
         archiveFile = fileutils.archiveDir(backupConfig.source)
         logging.info("Copying archive to the target")
         fileutils.copyFile(archiveFile, backupConfig.target)
         logging.info("Backup complete")
-        return ["SUCCESS: Completed backup for: " + backupConfig.__str__()]
+        return (Status.SUCCESS, "")
     except Exception as ex:
-        logging.error("Next exception was encountered: \n" + ex.__str__())
-        return ["FAILED: Could not perform backup for: " + backupConfig.__str__(), ex.__str__()]
+        logging.error("Next error occurred: \n" + ex.__str__())
+        return (Status.FAILED, "Next errors occurred: \n" + ex.__str__())
 
 def performBackupCheck(backupConfig):
     """
     Checks if backup was performed correctly according to specified config.
     """
     try:
-        logging.info("Started backup check for: " + backupConfig.__str__())
+        logging.info("Checking backup of " + backupConfig.__str__())
         logging.info("Copying latest archive to tmp dir.")
         latestArchiveName = getNewestArchiveNameAndTime(backupConfig.target)[0]
         if not latestArchiveName:
-            m = "FAILED: Can not complete check since archive file was not found."
+            m = "Couldn't find archive to be checked."
             logging.error(m)
-            return [m]
+            return (Status.FAILED, m)
+
         tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpRemoteDir())
         logging.info("Comparing tree listings and file modification dates.")
         errors = fileutils.compareArchiveContents(tmpArchive, backupConfig.source)
+        logging.info("Backup check completed")
 
         if errors:
-            logging.error("Inconsistencies found between archive and source.")
-            logging.error("Next errors were encountered: \n" + "\n".join(errors))
-            errors.insert(0,"FAILED: Could not perform backup check for: " + backupConfig.__str__())
+            logging.error("Next errors were occurred while comparing archive and source: \n" + "\n".join(errors))
+            return (Status.FAILED, errors)
         if not errors:
-            errors = ["SUCCESS: Completed backup check for: " + backupConfig.__str__()]
-        logging.info("Backup check completed")
-        return errors
+            return (Status.SUCCESS, "")
     except Exception as ex:
-        logging.error("Next exception was encountered: \n" + ex.__str__())
-        return ["FAILED: Could not perform backup check for: " + backupConfig.__str__(), ex.__str__()]
+        logging.error("Next errors occurred: \n" + ex.__str__())
+        return (Status.FAILED, "Next errors occurred: \n" + ex.__str__())
 
-def performReporting(errors, reporterConfig):
+def performReporting(messages, reporterConfig):
     """
     Performs email reporting.
     """
-    msg = MIMEText("Next errors were encountered: \n" + "\n".join(errors)) if errors else MIMEText("Backup was completed successfully")
-    msg['Subject'] = reporterConfig.subjectPrefix + "Status report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+    msg = MIMEText("\n".join(messages))
+    subj = "Status " + status + " on " + socket.gethostname() + " host. Report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+    msg['Subject'] = reporterConfig.subjectPrefix + subj
     msg['From'] = reporterConfig.fromAddress
     msg['To'] = reporterConfig.toAddress
     s = smtplib.SMTP(reporterConfig.smtpConfig.host, int(reporterConfig.smtpConfig.port))
@@ -139,10 +197,10 @@ def performBackupCleanup(config):
                     fileutils.removeFile(archive)
                 totalRemoved+=len(archivesToRemove)
                 logging.info("Cleaning up old archives at "+backup.target+". Removed a total of "+str(len(archivesToRemove))+" files")
-            return ["SUCCESS: Completed archive rotation. Removed a total of " + str(totalRemoved) + " old archives."]
+            return (Status.SUCCESS, "Removed a total of " + str(totalRemoved) + " old archives.")
     except Exception as ex:
-        logging.error("Next exception was encountered: \n" + ex.__str__())
-        return ["FAILED: Could not perform backup cleanup", ex.__str__()]
+        logging.error("Next exception occurred: \n" + ex.__str__())
+        return (Status.FAILED, "Next exception occured: " + ex.__str__())
 
 def getNewestArchiveNameAndTime(dirPath):
     """
