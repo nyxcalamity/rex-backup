@@ -97,7 +97,7 @@ def performBackupCheck(backupConfig):
             logging.error("Next errors were encountered: \n" + "\n".join(errors))
             errors.insert(0,"FAILED: Could not perform backup check for: " + backupConfig.__str__())
         if not errors:
-            errors.append("SUCCESS: Completed backup check for: " + backupConfig.__str__())
+            errors = ["SUCCESS: Completed backup check for: " + backupConfig.__str__()]
         logging.info("Backup check completed")
         return errors
     except Exception as ex:
@@ -154,16 +154,19 @@ def getNewestArchiveNameAndTime(dirPath):
     Returns a tuple of the form (absoluteFilePath, modificationTimestamp) or None
     """
     archiveDates = getArchiveNamesAndTimes(dirPath)
-    return max(archiveDates.items(), key=operator.itemgetter(1))
+    if archiveDates:
+        return max(archiveDates.items(), key=operator.itemgetter(1))
 
 def getArchiveNamesAndTimes(dirPath):
     """
     Traverses the sourceDir and creates a dict with archive file names as keys and their creation date as value.
     """
     archiveDates = dict()
-    for archive in fileutils.getArchiveFiles(dirPath):
-        archiveDates[archive] = fileutils.parseArchiveDate(archive)
-    return archiveDates
+    archives = fileutils.getArchiveFiles(dirPath)
+    if archives:
+        for archive in archives:
+            archiveDates[archive] = fileutils.parseArchiveDate(archive)
+        return archiveDates
 
 
 if __name__ == '__main__':
