@@ -100,7 +100,7 @@ def performBackupCheck(backupConfig):
         logging.info("Backup check completed")
         return errors
     except Exception:
-        return ["FAILED: Could not perform backup check for: " + backupConfig]
+        return ["FAILED: Could not perform backup check for: " + backupConfig.__str__()]
 
 def performReporting(errors, reporterConfig):
     """
