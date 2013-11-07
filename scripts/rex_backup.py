@@ -18,7 +18,6 @@
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
 
-import os
 import logging
 import datetime
 import time
@@ -47,20 +46,15 @@ def main():
                     if now < nextBackUpTime:
                         isDowntimePeriod = True
             if not isDowntimePeriod:
-                messages = addMessages(messages,performBackupTask(backup))
-            if config.performChecks:
-                messages = addMessages(messages,performBackupCheck(backup))
+                messages.extend(performBackupTask(backup))
+                v = input("Enter something: ")
+                if config.performChecks:
+                    messages.extend(performBackupCheck(backup))
 
-    messages = addMessages(messages, performBackupCleanup(config))
+    messages.extend(performBackupCleanup(config))
 
     if config.performReporting:
-        messages = addMessages(messages, performReporting(messages, config.reporterConfig))
-
-def addMessages(targetList, messages):
-    if messages:
-        for msg in messages:
-            targetList.append(msg)
-    return targetList
+        performReporting(messages, config.reporterConfig)
 
 def performBackupTask(backupConfig):
     """
@@ -87,8 +81,10 @@ def performBackupCheck(backupConfig):
         logging.info("Copying latest archive to tmp dir.")
         latestArchiveName = getNewestArchiveNameAndTime(backupConfig.target)[0]
         if not latestArchiveName:
-            logging.error("Check FAILED. No archive file found.")
-        tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpDir())
+            m = "FAILED: Can not complete check since archive file was not found."
+            logging.error(m)
+            return [m]
+        tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpRemoteDir())
         logging.info("Comparing tree listings and file modification dates.")
         errors = fileutils.compareArchiveContents(tmpArchive, backupConfig.source)
 
@@ -171,9 +167,9 @@ def getArchiveNamesAndTimes(dirPath):
 
 if __name__ == '__main__':
     #Setting up application logger
-    logFile = os.path.join(fileutils.getLogDir(), "rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log")
+    #logFile = os.path.join(fileutils.getLogDir(), "rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log")
     logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
     #Will create a new file each time application is executed
-    logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
-    #logging.basicConfig(level=logging.DEBUG,format=logFormat)
+    #logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
+    logging.basicConfig(level=logging.DEBUG,format=logFormat)
     main()

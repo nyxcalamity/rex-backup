@@ -52,6 +52,24 @@ def getTmpDir():
         os.makedirs(tmpDir)
     return tmpDir
 
+def getTmpLocalDir():
+    """
+    Returns path to the temporary directory. Creates one if it didn't exist.
+    """
+    tmpDir =  os.path.join(getTmpDir(), "local")
+    if not os.path.exists(tmpDir):
+        os.makedirs(tmpDir)
+    return tmpDir
+
+def getTmpRemoteDir():
+    """
+    Returns path to the temporary directory. Creates one if it didn't exist.
+    """
+    tmpDir =  os.path.join(getTmpDir(), "remote")
+    if not os.path.exists(tmpDir):
+        os.makedirs(tmpDir)
+    return tmpDir
+
 def getLogDir():
     """
     Returns path to the log directory. Creates one if it didn't exist.
@@ -65,8 +83,7 @@ def cleanTmp():
     """
     Deletes all files in the temp directory.
     """
-    for file in os.listdir(getTmpDir()):
-        os.remove(os.path.join(getTmpDir(), file))
+    shutil.rmtree(getTmpDir())
 
 def readConfig(fileName):
     """
@@ -128,7 +145,7 @@ def archiveDir(sourceDir):
     if isValidDir(sourceDir):
         sourceName = os.path.basename(sourceDir) #Extracts base name
         archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
-        return make_archive(os.path.join(getTmpDir(),archiveName), ARCHIVE_TYPE, sourceDir)
+        return make_archive(os.path.join(getTmpLocalDir(),archiveName), ARCHIVE_TYPE, sourceDir)
 
 def generateMD5File(sourceFile):
     """
