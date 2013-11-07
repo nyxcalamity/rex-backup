@@ -33,59 +33,73 @@ def main():
 
     messages = []
     #Processing backups
-    for backup in config.backups:
-        #Don't do backups if we are in the downtime period
-        isDowntimePeriod = False
-        if int(backup.backupDowntime) != 0:
-            archiveTimeTuple = getNewestArchiveNameAndTime(backup.target)
-            if archiveTimeTuple: #if there was no archive we don't need to check anything
-                lastBackupTime = archiveTimeTuple[1].date()
-                now = datetime.date.fromtimestamp(time.time())
-                nextBackUpTime = lastBackupTime + datetime.timedelta(days=int(backup.backupDowntime))
-                if now < nextBackUpTime:
-                    isDowntimePeriod = True
-        if not isDowntimePeriod:
-            performBackupTask(backup)
-        if config.performChecks:
-            addMessages(messages,performBackupCheck(backup))
+    if len(config.backups) > 0:
+        for backup in config.backups:
+            #Don't do backups if we are in the downtime period
+            isDowntimePeriod = False
+            if int(backup.backupDowntime) != 0:
+                archiveTimeTuple = getNewestArchiveNameAndTime(backup.target)
+                if archiveTimeTuple: #if there was no archive we don't need to check anything
+                    lastBackupTime = archiveTimeTuple[1].date()
+                    now = datetime.date.fromtimestamp(time.time())
+                    nextBackUpTime = lastBackupTime + datetime.timedelta(days=int(backup.backupDowntime))
+                    if now < nextBackUpTime:
+                        isDowntimePeriod = True
+            if not isDowntimePeriod:
+                messages = addMessages(messages,performBackupTask(backup))
+            if config.performChecks:
+                messages = addMessages(messages,performBackupCheck(backup))
 
-    performBackupCleanup(config)
+    messages = addMessages(messages, performBackupCleanup(config))
 
     if config.performReporting:
-        performReporting(messages, config.reporterConfig)
+        messages = addMessages(messages, performReporting(messages, config.reporterConfig))
 
 def addMessages(targetList, messages):
     if messages:
         for msg in messages:
             targetList.append(msg)
+    return targetList
 
 def performBackupTask(backupConfig):
     """
     Performs backup according to provided config.
     """
-    logging.info("Started backup for: " + backupConfig.__str__())
-    logging.info("Archiving source directory")
-    archiveFile = fileutils.archiveDir(backupConfig.source)
-    logging.info("Copying archive to the target")
-    fileutils.copyFile(archiveFile, backupConfig.target)
-    logging.info("Backup complete")
+    try:
+        logging.info("Started backup for: " + backupConfig.__str__())
+        logging.info("Archiving source directory")
+        archiveFile = fileutils.archiveDir(backupConfig.source)
+        logging.info("Copying archive to the target")
+        fileutils.copyFile(archiveFile, backupConfig.target)
+        logging.info("Backup complete")
+        return ["SUCCESS: Completed backup for: " + backupConfig.__str__()]
+    except Exception:
+        return ["FAILED: Could not perform backup for: " + backupConfig.__str__()]
 
 def performBackupCheck(backupConfig):
     """
     Checks if backup was performed correctly according to specified config.
     """
-    logging.info("Started backup check for: " + backupConfig.__str__())
-    logging.info("Copying latest archive to tmp dir.")
-    latestArchiveName = getNewestArchiveNameAndTime(backupConfig.target)[0]
-    if not latestArchiveName:
-        logging.error("Check FAILED. No archive file found.")
-    tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpDir())
-    logging.info("Comparing tree listings and file modification dates.")
-    errors = fileutils.compareArchiveContents(tmpArchive, backupConfig.source)
-    if errors:
-        logging.error("Inconsistencies found between archive and source.")
-        logging.error("Next errors were encountered: \n" + "\n".join(errors))
-    logging.info("Backup check completed")
+    try:
+        logging.info("Started backup check for: " + backupConfig.__str__())
+        logging.info("Copying latest archive to tmp dir.")
+        latestArchiveName = getNewestArchiveNameAndTime(backupConfig.target)[0]
+        if not latestArchiveName:
+            logging.error("Check FAILED. No archive file found.")
+        tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpDir())
+        logging.info("Comparing tree listings and file modification dates.")
+        errors = fileutils.compareArchiveContents(tmpArchive, backupConfig.source)
+
+        if errors:
+            logging.error("Inconsistencies found between archive and source.")
+            logging.error("Next errors were encountered: \n" + "\n".join(errors))
+            errors.insert(0,"FAILED: Could not perform backup check for: " + backupConfig.__str__())
+        if not errors:
+            errors.append("SUCCESS: Completed backup check for: " + backupConfig.__str__())
+        logging.info("Backup check completed")
+        return errors
+    except Exception:
+        return ["FAILED: Could not perform backup check for: " + backupConfig]
 
 def performReporting(errors, reporterConfig):
     """
@@ -106,23 +120,29 @@ def performBackupCleanup(config):
     """
     Performs a cleanup of files and directories which are no longer needed.
     """
-    logging.info("Cleaning up tmp directory.")
-    fileutils.cleanTmp()
+    try:
+        logging.info("Cleaning up tmp directory.")
+        fileutils.cleanTmp()
 
-    if int(config.rotationPeriod) != 0:
-        for backup in config.backups:
-            archivesToRemove = []
-            archiveDates = getArchiveNamesAndTimes(backup.target)
-            newestArchiveDate = max(archiveDates.items(), key=operator.itemgetter(1))[1]
-            oldestArchiveDate = newestArchiveDate-datetime.timedelta(days=config.rotationPeriod)
+        if int(config.rotationPeriod) != 0:
+            totalRemoved = 0
+            for backup in config.backups:
+                archivesToRemove = []
+                archiveDates = getArchiveNamesAndTimes(backup.target)
+                newestArchiveDate = max(archiveDates.items(), key=operator.itemgetter(1))[1]
+                oldestArchiveDate = newestArchiveDate-datetime.timedelta(days=config.rotationPeriod)
 
-            for archive in archiveDates.keys():
-                if oldestArchiveDate > archiveDates[archive]:
-                    archivesToRemove.append(archive)
+                for archive in archiveDates.keys():
+                    if oldestArchiveDate > archiveDates[archive]:
+                        archivesToRemove.append(archive)
 
-            for archive in archivesToRemove:
-                fileutils.removeFile(archive)
-            logging.info("Cleaning up old archives at "+backup.target+". Removed a total of "+str(len(archivesToRemove))+" files")
+                for archive in archivesToRemove:
+                    fileutils.removeFile(archive)
+                totalRemoved+=len(archivesToRemove)
+                logging.info("Cleaning up old archives at "+backup.target+". Removed a total of "+str(len(archivesToRemove))+" files")
+            return ["SUCCESS: Completed archive rotation. Removed a total of " + str(totalRemoved) + " old archives."]
+    except Exception:
+        return ["FAILED: Could not perform backup cleanup"]
 
 def getNewestArchiveNameAndTime(dirPath):
     """

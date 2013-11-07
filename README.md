@@ -34,7 +34,7 @@ Linux share mount example:
 sudo mkdir -p /mnt/nas
 
 manual:
-sudo mount -t cifs //192.168.178.49/public -o uid=1000,username=uname,dom=CRXMARKETS,password=pword /mnt/nas
+sudo mount -t cifs //192.168.178.49/backup -o uid=1000,username=uname,dom=CRXMARKETS,password=pword /mnt/nas
 
 fstab:
-//192.168.178.49/public /mnt/nas cifs uid=1000,username=uname,dom=CRXMARKETS,password=pword,iocharset=utf8,noperm 0 0
+//192.168.178.49/backup /mnt/nas cifs uid=1000,username=uname,dom=CRXMARKETS,password=pword,iocharset=utf8,noperm 0 0

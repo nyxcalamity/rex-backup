@@ -211,12 +211,21 @@ def compareArchiveContents(archiveFilePath, sourceDirPath):
     for srcKey in srcMembers:
         tarKey = srcKey.replace(sourceDirPath, ".")
         if not (tarKey in tarMembers):
-            errors.append(tarKey + " is missing in the tar")
+            tarKey += os.path.sep #For some reason some folders have separator concatenated to the path.
+            if not (tarKey in tarMembers):
+                errors.append(tarKey + " is missing in the archive")
         elif datetime.date.fromtimestamp(srcMembers[srcKey]) != datetime.date.fromtimestamp(tarMembers[tarKey]):
-            errors.append(tarKey + " has wrong mtime timestamp: tar=" + str(tarMembers[tarKey]) + " src=" + str(srcMembers[srcKey]))
+            errors.append(tarKey + " has wrong mtime timestamp: archive=" + timestampToString(tarMembers[tarKey]) + \
+                          " src=" + timestampToString(srcMembers[srcKey]))
 
     if len(errors) > 0:
         return errors
+
+def timestampToString(timestamp):
+    """
+    Gets a timestamp and creates a formatted date string out of that timestamp.
+    """
+    return datetime.date.fromtimestamp(timestamp).strftime("%Y-%m-%d-%H:%M")
 
 def isValidFile(path):
     """
