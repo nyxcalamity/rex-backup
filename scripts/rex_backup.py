@@ -162,7 +162,7 @@ def performReporting(messages, reporterConfig):
     Performs email reporting.
     """
     msg = MIMEText("\n".join(messages))
-    subj = "Status " + status + " on " + socket.gethostname() + " host. Report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+    subj = "Status " + getGlobalStatus() + " on " + socket.gethostname() + " host. Report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
     msg['Subject'] = reporterConfig.subjectPrefix + subj
     msg['From'] = reporterConfig.fromAddress
     msg['To'] = reporterConfig.toAddress
