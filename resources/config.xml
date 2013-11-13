@@ -12,20 +12,21 @@ backup-downtime     - is a number of days of a backup free time, meaning that no
 NOTE: Please follow next rules:
     - It is assumed that all dates are passed in days, thus backup-downtime="3" will mean 3 days of backup-free time.
     - Use empty strings for false values and "true" for true values.
-      For more information on python truth values see http://docs.python.org/2/library/stdtypes.html -->
+      For more information on python truth values see http://docs.python.org/2/library/stdtypes.html
+    - It is recommended to test regexp here: http://regex101.com/
+
+IMPORTANT NOTE:
+    - in reporter TLS is always enabled for smtp.
+-->
 <config rotation-period="90" perform-checks="true" perform-reporting="true">
     <backups>
-        <backup backup-downtime="0">
-            <source>/home/nyxcalamity/wh</source>
-            <target>/mnt/nas/rex-backup</target>
-        </backup>
-        <backup backup-downtime="0">
-            <source>/home/nyxcalamity/bin</source>
-            <target>/mnt/nas/rex-backup</target>
+        <backup backup-downtime="0" exclude-regexp="(\.DS_Service)">
+            <source>/mnt/trinity</source>
+            <target>/home/nyxcalamity/ws/ws-crx/rex-backup/backup</target>
         </backup>
         <!-- Add more backups if needed -->
     </backups>
     <reporter from-address="no-reply@crxmarkets.com" to-address="denys.sobchyshak@gmail.com,sobchyshak@crxmarkets.com" subject-prefix="[CRX-BACKUP]">
-        <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="" />
+        <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="Snickers23!" />
     </reporter>
 </config>
