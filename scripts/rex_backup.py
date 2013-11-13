@@ -14,19 +14,24 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import re
 
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
+__version__ = 1.0
 
 import logging
 import datetime
 import time
 import smtplib
 import operator
-import socket
+import socket, os
 from email.mime.text import MIMEText
+from optparse import OptionParser
 
-import fileutils
+import fileutils, config
+
+ARCHIVE_FORMATS = ["zip", "tar", "bztar", "gztar"]
 
 class Status:
     SUCCESS = "OK"
@@ -46,52 +51,9 @@ class Tasks:
 messages = []
 status = Status.SUCCESS
 
-def main():
-    logging.info("Reading config file...")
-    config = fileutils.readConfig("config.xml")
-
-    #Processing backups
-    if len(config.backups) > 0:
-        skipCount = 0
-        for backup in config.backups:
-            backupStatus = (Status.SKIPPED, "")
-            checkStatus = (Status.SKIPPED, "")
-
-            #Don't do backups if we are in the downtime period
-            isDowntimePeriod = False
-            if int(backup.backupDowntime) != 0:
-                archiveTimeTuple = getNewestArchiveNameAndTime(backup.target)
-                if archiveTimeTuple: #if there was no archive we don't need to check anything
-                    lastBackupTime = archiveTimeTuple[1].date()
-                    now = datetime.date.fromtimestamp(time.time())
-                    nextBackUpTime = lastBackupTime + datetime.timedelta(days=int(backup.backupDowntime))
-                    if now < nextBackUpTime:
-                        isDowntimePeriod = True
-            if not isDowntimePeriod:
-                backupStatus = performBackupTask(backup)
-                if config.performChecks:
-                    checkStatus = performBackupCheck(backup)
-            else:
-                skipCount+=1
-            #Adding messages for reporting
-            addMessage(backupStatus, Tasks.BACKUP, backup.source)
-            addMessage(checkStatus, Tasks.CHECK, backup.source)
-
-        if skipCount == len(config.backups): status = Status.SKIPPED
-
-    cleanupStatus = performBackupCleanup(config)
-    addMessage(cleanupStatus, Tasks.CLEANUP, fileutils.getTmpDir())
-
-    if config.performReporting:
-        performReporting(messages, config.reporterConfig)
-
-def addMessage(statusTuple, taskType, location):
-    """
-    Adds provided info to the messages.
-    """
-    template = getTemplateByStatus(statusTuple[0])
-    messages.append(statusTuple[0] + ": " + (template % {"what": taskType, "where": location}) + "\n" + statusTuple[1])
-
+#-----------------------------------------------------------------------------------------------------------------------
+# General functions
+#-----------------------------------------------------------------------------------------------------------------------
 def getGlobalStatus():
     """
     Parses global status and messages and determines real status of a backup.
@@ -102,6 +64,14 @@ def getGlobalStatus():
         if m.startswith(Status.FAILED):
             return Status.FAILED
     return Status.SUCCESS
+
+def addMessage(status, taskType, location, message=""):
+    """
+    Adds provided info to the messages.
+    """
+    global messages
+    template = getTemplateByStatus(status)
+    messages.append(status + ": " + (template % {"what": taskType, "where": location}) + "\n" + message)
 
 def getTemplateByStatus(status):
     """
@@ -114,64 +84,104 @@ def getTemplateByStatus(status):
     elif status == Status.SKIPPED:
         return Messages.SKIPPED
 
-def performBackupTask(backupConfig):
+#-----------------------------------------------------------------------------------------------------------------------
+# Main tasks and routines
+#-----------------------------------------------------------------------------------------------------------------------
+def main():
+    global status
+    #Processing configuration
+    rexConfig = None
+    try:
+        configFilePath = os.path.join(fileutils.getWorkingDir(), "resources", "config.xml")
+        logging.info("Reading config file: " + configFilePath)
+        rexConfig = config.readConfig(configFilePath)
+    except Exception as ex:
+        logging.fatal("Failed to parse configuration file. Reason: " + ex.__str__())
+
+    if rexConfig:
+        #step 1:performing backups
+        if len(rexConfig.backups) > 0:
+            skipCount = 0
+            for backup in rexConfig.backups:
+                try:
+                    if not isDowntimePeriod(backup): #don't do backups if it's a downtime period
+                        performBackup(backup)
+                        addMessage(Status.SUCCESS, Tasks.BACKUP, backup.source)
+                        if rexConfig.performChecks:
+                            performBackupCheck(backup)
+                            addMessage(Status.SUCCESS, Tasks.CHECK, backup.source)
+                    else:
+                        skipCount+=1
+                        addMessage(Status.SKIPPED, Tasks.BACKUP, backup.source)
+                except Exception as ex:
+                    addMessage(Status.FAILED, Tasks.BACKUP,backup.source,ex.__str__())
+            if skipCount == len(rexConfig.backups): status = Status.SKIPPED
+
+        #step 2:performing cleanup
+        try:
+            performBackupCleanup(rexConfig)
+            addMessage(Status.SUCCESS, Tasks.CLEANUP, fileutils.getTmpDir())
+        except Exception as ex:
+            addMessage(Status.FAILED, Tasks.CLEANUP, fileutils.getTmpDir(), ex.__str__())
+
+        #step 3: performing reporting
+        try:
+            if rexConfig.performReporting:
+                performReporting(messages, rexConfig.reporterConfig)
+        except Exception as ex:
+            logging.error("Failed to perform reporting: " + ex.__str__())
+
+def isDowntimePeriod(backupConfig):
+    if int(backupConfig.backupDowntime) == 0:
+        return False
+    else:
+        archivePath = getNewestArchivePath(backupConfig.target)
+        if archivePath: #if there was no archive we don't need to check anything
+            lastBackupTime = parseArchiveDate(archivePath).date()
+            nextBackUpTime = lastBackupTime + datetime.timedelta(days=int(backupConfig.backupDowntime))
+            now = datetime.date.fromtimestamp(time.time())
+            if now < nextBackUpTime:
+                return True
+        else:
+            return False
+
+def performBackup(backupConfig):
     """
     Performs backup according to provided config.
     """
     try:
-        logging.info("Backing up " + backupConfig.__str__())
-        logging.info("Archiving source directory")
-        archiveFile = fileutils.archiveDir(backupConfig.source)
-        logging.info("Copying archive to the target")
-        fileutils.copyFile(archiveFile, backupConfig.target)
+        logging.info("Performing backup task: " + backupConfig.__str__())
+
+        logging.info("Archiving directory: " + backupConfig.source)
+        archiveFilePath = fileutils.archiveDir(backupConfig.source, ARCHIVE_FORMATS[3])
+        logging.info("Copying archive to target directory: " + backupConfig.target)
+        fileutils.copyFile(archiveFilePath, backupConfig.target)
+
         logging.info("Backup complete")
-        return (Status.SUCCESS, "")
     except Exception as ex:
-        logging.error("Next error occurred: \n" + ex.__str__())
-        return (Status.FAILED, "Next errors occurred: \n" + ex.__str__())
+        raise TaskError("Failed to perform backup: " + ex.__str__())
 
 def performBackupCheck(backupConfig):
     """
     Checks if backup was performed correctly according to specified config.
     """
     try:
-        logging.info("Checking backup of " + backupConfig.__str__())
-        logging.info("Copying latest archive to tmp dir.")
-        latestArchiveName = getNewestArchiveNameAndTime(backupConfig.target)[0]
-        if not latestArchiveName:
-            m = "Couldn't find archive to be checked."
-            logging.error(m)
-            return (Status.FAILED, m)
+        logging.info("Checking backup: " + backupConfig.__str__())
 
-        tmpArchive = fileutils.copyFile(latestArchiveName, fileutils.getTmpRemoteDir())
-        logging.info("Comparing tree listings and file modification dates.")
-        errors = fileutils.compareArchiveContents(tmpArchive, backupConfig.source)
+        archivePath = getNewestArchivePath(backupConfig.target)
+        if not archivePath:
+            raise TaskError("No archive was found in the target dir: " + backupConfig.target)
+        logging.info("Copying newest archive: " + archivePath)
+        tmpArchive = fileutils.copyFile(archivePath, fileutils.getTmpRemoteDir())
+        logging.info("Checking archive consistency.")
+        inconsistencies = fileutils.compareArchiveAgainstDir(tmpArchive, backupConfig.source)
+
         logging.info("Backup check completed")
-
-        if errors:
-            logging.error("Next errors were occurred while comparing archive and source: \n" + "\n".join(errors))
-            return (Status.FAILED, errors)
-        if not errors:
-            return (Status.SUCCESS, "")
+        if inconsistencies:
+            logging.error("Found inconsistencies while checking archive and source: \n" + "\n".join(inconsistencies))
+            raise TaskError("Found inconsistencies while checking archive and source: \n" + "\n".join(inconsistencies))
     except Exception as ex:
-        logging.error("Next errors occurred: \n" + ex.__str__())
-        return (Status.FAILED, "Next errors occurred: \n" + ex.__str__())
-
-def performReporting(messages, reporterConfig):
-    """
-    Performs email reporting.
-    """
-    msg = MIMEText("\n".join(messages))
-    subj = "Status " + getGlobalStatus() + " on " + socket.gethostname() + " host. Report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
-    msg['Subject'] = reporterConfig.subjectPrefix + subj
-    msg['From'] = reporterConfig.fromAddress
-    msg['To'] = reporterConfig.toAddress
-    s = smtplib.SMTP(reporterConfig.smtpConfig.host, int(reporterConfig.smtpConfig.port))
-    s.starttls()
-    s.login(reporterConfig.smtpConfig.username, reporterConfig.smtpConfig.password)
-    s.sendmail(reporterConfig.fromAddress, reporterConfig.toAddress.split(","), msg.as_string())
-    s.quit()
-    logging.info("Reporting complete")
+        raise TaskError("Could not check backup: " + ex.__str__())
 
 def performBackupCleanup(config):
     """
@@ -192,42 +202,95 @@ def performBackupCleanup(config):
                 for archive in archiveDates.keys():
                     if oldestArchiveDate > archiveDates[archive]:
                         archivesToRemove.append(archive)
-
                 for archive in archivesToRemove:
                     fileutils.removeFile(archive)
+
                 totalRemoved+=len(archivesToRemove)
                 logging.info("Cleaning up old archives at "+backup.target+". Removed a total of "+str(len(archivesToRemove))+" files")
-            return (Status.SUCCESS, "Removed a total of " + str(totalRemoved) + " old archives.")
-    except Exception as ex:
-        logging.error("Next exception occurred: \n" + ex.__str__())
-        return (Status.FAILED, "Next exception occured: " + ex.__str__())
 
-def getNewestArchiveNameAndTime(dirPath):
+            logging.info("Removed a total of " + str(totalRemoved) + " old archives.")
+    except Exception as ex:
+        raise TaskError("Couldn't complete cleanup: " + ex.__str__())
+
+def performReporting(messages, reporterConfig):
+    """
+    Performs email reporting.
+    """
+    try:
+        logging.info("Performing reporting.")
+
+        msg = MIMEText("\n".join(messages))
+        subj = "Status " + getGlobalStatus() + " on " + socket.gethostname() + " host. Report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+        msg['Subject'] = reporterConfig.subjectPrefix + subj
+        msg['From'] = reporterConfig.fromAddress
+        msg['To'] = reporterConfig.toAddress
+        s = smtplib.SMTP(reporterConfig.smtpConfig.host, int(reporterConfig.smtpConfig.port))
+        s.starttls()
+        s.login(reporterConfig.smtpConfig.username, reporterConfig.smtpConfig.password)
+        s.sendmail(reporterConfig.fromAddress, reporterConfig.toAddress.split(","), msg.as_string())
+        s.quit()
+
+        logging.info("Reporting complete")
+    except Exception as ex:
+        raise TaskError("Could not perform reporting: " + ex.__str__())
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Utility
+#-----------------------------------------------------------------------------------------------------------------------
+class TaskError(Exception):
+     """
+     Abstract task utils error.
+     """
+     def __init__(self, value):
+         self.value = value
+     def __str__(self):
+         return repr(self.value)
+
+def getNewestArchivePath(dirPath):
     """
     Parses source contents and tries to find file which is assumed to be the latest archive.
     Returns a tuple of the form (absoluteFilePath, modificationTimestamp) or None
     """
     archiveDates = getArchiveNamesAndTimes(dirPath)
     if archiveDates:
-        return max(archiveDates.items(), key=operator.itemgetter(1))
+        return (max(archiveDates.items(), key=operator.itemgetter(1)))[0]
 
 def getArchiveNamesAndTimes(dirPath):
     """
     Traverses the sourceDir and creates a dict with archive file names as keys and their creation date as value.
     """
     archiveDates = dict()
-    archives = fileutils.getArchiveFiles(dirPath)
+    archives = fileutils.getFiles(dirPath, "^.*-\d+\.tar\.gz$")
     if archives:
         for archive in archives:
-            archiveDates[archive] = fileutils.parseArchiveDate(archive)
+            archiveDates[archive] = parseArchiveDate(archive)
         return archiveDates
 
+def parseArchiveDate(fileName):
+    """
+    Finds date in the filename and returns a datetime object.
+    """
+    m = re.search("(?<=-)(\d+)(?=\.tar\.gz)", fileName)
+    return datetime.datetime.strptime(m.group(0), "%Y%m%d%H%M")
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Misc
+#-----------------------------------------------------------------------------------------------------------------------
+def processCLI():
+    #Handle script arguments
+    parser = OptionParser("usage: %prog [options] arg")
+    parser.add_option("-v","--verbose",action="store_true",dest="verbose",default=False,help="print log messages to console")
+    (options, args) = parser.parse_args()
+
+    logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
+    if options.verbose:
+        logging.basicConfig(level=logging.DEBUG,format=logFormat)
+    else:
+         #Setting up application logger
+        logFile = os.path.join(fileutils.getLogDir(), "rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log")
+        #Will create a new file each time application is executed
+        logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
 
 if __name__ == '__main__':
-    #Setting up application logger
-    #logFile = os.path.join(fileutils.getLogDir(), "rex-backup-"+datetime.datetime.now().strftime("%Y%m%d%H%M")+".log")
-    logFormat = "%(asctime)s [%(levelname)s]:%(module)s - %(message)s"
-    #Will create a new file each time application is executed
-    #logging.basicConfig(filename=logFile, filemode="w",level=logging.INFO,format=logFormat)
-    logging.basicConfig(level=logging.DEBUG,format=logFormat)
+    processCLI()
     main()

@@ -14,9 +14,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
 __author__ = "Denys Sobchyshak"
 __email__ = "denys.sobchyshak@gmail.com"
+
+from xml.dom.minidom import parse
 
 class RexConfig:
     """
@@ -33,9 +34,10 @@ class BackupConfig:
     """
     Contains backup configuration parameters.
     """
-    def __init__(self, source=None, target=None, backupDowntime='0'):
+    def __init__(self, source=None, target=None, backupDowntime='0', excludeRegexp = ''):
         self.source = source
         self.target = target
+        self.excludeRegexp= excludeRegexp
         self.backupDowntime = backupDowntime
 
     def __str__(self):
@@ -60,3 +62,61 @@ class SmtpConfig:
         self.port = port
         self.username = username
         self.password = password
+
+
+def readConfig(configFilePath):
+    """
+    Parses provided config file and returns RexConfig object read from file.
+    """
+    dom = parse(configFilePath)
+
+    #Filling in config values from xml ET
+    rexConfig = RexConfig()
+
+    try:
+        #Parsing general configuration
+        config = dom.getElementsByTagName("config")[0]
+        if config.hasAttribute("rotation-period"): rexConfig.rotationPeriod = int(config.getAttribute("rotation-period"))
+        if config.hasAttribute("perform-checks"): rexConfig.performChecks = bool(config.getAttribute("perform-checks"))
+        if config.hasAttribute("perform-reporting"): rexConfig.performReporting = bool(config.getAttribute("perform-reporting"))
+
+        #Parsing configuration of backups
+        rexConfig.backups = []
+        backups = config.getElementsByTagName("backups")[0]
+        for backup in backups.getElementsByTagName("backup"):
+            backupCfg = BackupConfig()
+            if backup.hasAttribute("backup-downtime"): backupCfg.backupDowntime = int(backup.getAttribute("backup-downtime"))
+            if backup.hasAttribute("exclude-regexp"): backupCfg.excludeRegexp = str(backup.getAttribute("exclude-regexp"))
+            backupCfg.source = backup.getElementsByTagName("source")[0].childNodes[0].data
+            backupCfg.target = backup.getElementsByTagName("target")[0].childNodes[0].data
+            rexConfig.backups.append(backupCfg)
+
+        #Parsing configuration of reporter
+        reporterConfig = ReporterConfig()
+        reporter = config.getElementsByTagName("reporter")[0]
+        if reporter.hasAttribute("from-address"): reporterConfig.fromAddress = reporter.getAttribute("from-address")
+        if reporter.hasAttribute("to-address"): reporterConfig.toAddress = reporter.getAttribute("to-address")
+        if reporter.hasAttribute("subject-prefix"): reporterConfig.subjectPrefix = reporter.getAttribute("subject-prefix")
+        rexConfig.reporterConfig = reporterConfig
+
+        #Parsing smtp configuration
+        smtpConfig = SmtpConfig()
+        smtp = reporter.getElementsByTagName("smtp")[0]
+        if smtp.hasAttribute("host"): smtpConfig.host = smtp.getAttribute("host")
+        if smtp.hasAttribute("port"): smtpConfig.port = smtp.getAttribute("port")
+        if smtp.hasAttribute("username"): smtpConfig.username = smtp.getAttribute("username")
+        if smtp.hasAttribute("password"): smtpConfig.password = smtp.getAttribute("password")
+        reporterConfig.smtpConfig = smtpConfig
+    except Exception:
+        raise ConfigError("Invalid file format.")
+
+    return rexConfig
+
+class ConfigError(Exception):
+     """
+     Abstract configuration error.
+     """
+     def __init__(self, value):
+         self.value = value
+     def __str__(self):
+         return repr(self.value)
