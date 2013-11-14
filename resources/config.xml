@@ -27,6 +27,6 @@ IMPORTANT NOTE:
         <!-- Add more backups if needed -->
     </backups>
     <reporter from-address="no-reply@crxmarkets.com" to-address="denys.sobchyshak@gmail.com,sobchyshak@crxmarkets.com" subject-prefix="[CRX-BACKUP]">
-        <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="Snickers23!" />
+        <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="" />
     </reporter>
 </config>
