@@ -7,6 +7,7 @@ __pycache__
 
 #Misc
 .git
+backup
 logs
 tmp
 *.pdf
