@@ -103,18 +103,22 @@ def main():
         if len(rexConfig.backups) > 0:
             skipCount = 0
             for backup in rexConfig.backups:
-                try:
                     if not isDowntimePeriod(backup): #don't do backups if it's a downtime period
-                        performBackup(backup)
-                        addMessage(Status.SUCCESS, Tasks.BACKUP, backup.source)
-                        if rexConfig.performChecks:
-                            performBackupCheck(backup)
-                            addMessage(Status.SUCCESS, Tasks.CHECK, backup.source)
+                        try: #try to perform backup
+                            performBackup(backup)
+                            addMessage(Status.SUCCESS, Tasks.BACKUP, backup.source)
+                        except Exception as ex:
+                            addMessage(Status.FAILED, Tasks.BACKUP,backup.source,ex.__str__())
+                            break #no need to continue the loop if backup failed
+                        try:#try to perform backup check
+                            if rexConfig.performChecks:
+                                performBackupCheck(backup)
+                                addMessage(Status.SUCCESS, Tasks.CHECK, backup.source)
+                        except Exception as ex:
+                            addMessage(Status.FAILED, Tasks.CHECK,backup.source,ex.__str__())
                     else:
                         skipCount+=1
                         addMessage(Status.SKIPPED, Tasks.BACKUP, backup.source)
-                except Exception as ex:
-                    addMessage(Status.FAILED, Tasks.BACKUP,backup.source,ex.__str__())
             if skipCount == len(rexConfig.backups): status = Status.SKIPPED
 
         #step 2:performing cleanup
