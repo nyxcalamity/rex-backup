@@ -44,9 +44,9 @@ class Messages:
     SKIPPED = "Skipped %(what)s on %(where)s."
 
 class Tasks:
-    BACKUP = "BackupTask"
-    CHECK = "BackupCheckTask"
-    CLEANUP = "CleanupTask"
+    BACKUP = "backup task"
+    CHECK = "backup check task"
+    CLEANUP = "cleanup task"
 
 messages = []
 status = Status.SUCCESS
@@ -109,6 +109,7 @@ def main():
                             addMessage(Status.SUCCESS, Tasks.BACKUP, backup.source)
                         except Exception as ex:
                             addMessage(Status.FAILED, Tasks.BACKUP,backup.source,ex.__str__())
+                            logging.error("Failed to perform backup: " + ex.__str__())
                             break #no need to continue the loop if backup failed
                         try:#try to perform backup check
                             if rexConfig.performChecks:
@@ -116,6 +117,7 @@ def main():
                                 addMessage(Status.SUCCESS, Tasks.CHECK, backup.source)
                         except Exception as ex:
                             addMessage(Status.FAILED, Tasks.CHECK,backup.source,ex.__str__())
+                            logging.error("Failed to perform backup check: " + ex.__str__())
                     else:
                         skipCount+=1
                         addMessage(Status.SKIPPED, Tasks.BACKUP, backup.source)
@@ -127,6 +129,7 @@ def main():
             addMessage(Status.SUCCESS, Tasks.CLEANUP, fileutils.getTmpDir())
         except Exception as ex:
             addMessage(Status.FAILED, Tasks.CLEANUP, fileutils.getTmpDir(), ex.__str__())
+            logging.error("Failed to perform backup cleanup: " + ex.__str__())
 
         #step 3: performing reporting
         try:
