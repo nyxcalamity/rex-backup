@@ -34,22 +34,25 @@ import fileutils, config
 ARCHIVE_FORMATS = ["zip", "tar", "bztar", "gztar"]
 
 class Status:
-    SUCCESS = "OK"
-    SKIPPED = "SKIPPED"
-    FAILED = "FAILED"
+    Success = "SUCCESS"
+    Incomplete = "INCOMPLETE"
+    Skipped = "SKIPPED"
+    Failed = "FAILED"
 
 class Messages:
-    FAILED = "Failed to perform %(what)s on %(where)s."
-    SUCCESS = "Successfully performed %(what)s on %(where)s."
-    SKIPPED = "Skipped %(what)s on %(where)s."
+    Success = "Successfully performed %(what)s on %(where)s."
+    Skipped = "Skipped %(what)s on %(where)s."
+    Failed = "Failed to perform %(what)s on %(where)s."
 
 class Tasks:
-    BACKUP = "backup task"
-    CHECK = "backup check task"
-    CLEANUP = "cleanup task"
+    Backup = "backup task"
+    Check = "backup check task"
+    Cleanup = "cleanup task"
 
 messages = []
-status = Status.SUCCESS
+status = Status.Success
+skippedBackups = 0
+inconsistenciesFound = 0
 
 #-----------------------------------------------------------------------------------------------------------------------
 # General functions
@@ -58,12 +61,20 @@ def getGlobalStatus():
     """
     Parses global status and messages and determines real status of a backup.
     """
-    if status == Status.SKIPPED:
+    global status
+    failedMessages = []
+    if status == Status.Skipped:
         return status
     for m in messages:
-        if m.startswith(Status.FAILED):
-            return Status.FAILED
-    return Status.SUCCESS
+        if m.startswith(Status.Failed):
+            failedMessages.append(m)
+            status = Status.Incomplete
+
+    for m in failedMessages:
+        if Tasks.Backup in m:
+            status = Status.Failed
+
+    return status
 
 def addMessage(status, taskType, location, message=""):
     """
@@ -77,18 +88,18 @@ def getTemplateByStatus(status):
     """
     Parses status and return corresponding template
     """
-    if status == Status.SUCCESS:
-        return Messages.SUCCESS
-    elif status == Status.FAILED:
-        return Messages.FAILED
-    elif status == Status.SKIPPED:
-        return Messages.SKIPPED
+    if status == Status.Success:
+        return Messages.Success
+    elif status == Status.Skipped:
+        return Messages.Skipped
+    elif status == Status.Failed:
+        return Messages.Failed
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Main tasks and routines
 #-----------------------------------------------------------------------------------------------------------------------
 def main():
-    global status
+    global status, skippedBackups, inconsistenciesFound
     #Processing configuration
     rexConfig = None
     try:
@@ -101,34 +112,37 @@ def main():
     if rexConfig:
         #step 1:performing backups
         if len(rexConfig.backups) > 0:
-            skipCount = 0
             for backup in rexConfig.backups:
                     if not isDowntimePeriod(backup): #don't do backups if it's a downtime period
-                        try: #try to perform backup
-                            performBackup(backup)
-                            addMessage(Status.SUCCESS, Tasks.BACKUP, backup.source)
-                        except Exception as ex:
-                            addMessage(Status.FAILED, Tasks.BACKUP,backup.source,ex.__str__())
-                            logging.error("Failed to perform backup: " + ex.__str__())
-                            break #no need to continue the loop if backup failed
+                        #try: #try to perform backup
+                        #    performBackup(backup)
+                        #    addMessage(Status.Success, Tasks.Backup, backup.source)
+                        #except Exception as ex:
+                        #    addMessage(Status.Failed, Tasks.Backup,backup.source,ex.__str__())
+                        #    logging.error("Failed to perform backup: " + ex.__str__())
+                        #    break #no need to continue the loop if backup failed
                         try:#try to perform backup check
                             if rexConfig.performChecks:
                                 performBackupCheck(backup)
-                                addMessage(Status.SUCCESS, Tasks.CHECK, backup.source)
+                                addMessage(Status.Success, Tasks.Check, backup.source)
+                        except ArchiveIntegrityError as ex:
+                            addMessage(Status.Failed, Tasks.Check,backup.source,ex.__str__())
+                            logging.error("Backup check found some archive inconsistencies: " + ex.__str__())
+                            inconsistenciesFound+=len(ex.inconsistencies)
                         except Exception as ex:
-                            addMessage(Status.FAILED, Tasks.CHECK,backup.source,ex.__str__())
+                            addMessage(Status.Failed, Tasks.Check,backup.source,ex.__str__())
                             logging.error("Failed to perform backup check: " + ex.__str__())
                     else:
-                        skipCount+=1
-                        addMessage(Status.SKIPPED, Tasks.BACKUP, backup.source)
-            if skipCount == len(rexConfig.backups): status = Status.SKIPPED
+                        skippedBackups+=1
+                        addMessage(Status.Skipped, Tasks.Backup, backup.source)
+            if skippedBackups == len(rexConfig.backups): status = Status.Skipped
 
         #step 2:performing cleanup
         try:
             performBackupCleanup(rexConfig)
-            addMessage(Status.SUCCESS, Tasks.CLEANUP, fileutils.getTmpDir())
+            addMessage(Status.Success, Tasks.Cleanup, fileutils.getTmpDir())
         except Exception as ex:
-            addMessage(Status.FAILED, Tasks.CLEANUP, fileutils.getTmpDir(), ex.__str__())
+            addMessage(Status.Failed, Tasks.Cleanup, fileutils.getTmpDir(), ex.__str__())
             logging.error("Failed to perform backup cleanup: " + ex.__str__())
 
         #step 3: performing reporting
@@ -185,8 +199,9 @@ def performBackupCheck(backupConfig):
 
         logging.info("Backup check completed")
         if inconsistencies:
-            logging.error("Found inconsistencies while checking archive and source: \n" + "\n".join(inconsistencies))
-            raise TaskError("Found inconsistencies while checking archive and source: \n" + "\n".join(inconsistencies))
+            raise ArchiveIntegrityError("Found inconsistencies while checking archive and source.", inconsistencies)
+    except ArchiveIntegrityError as ex:
+        raise ex
     except Exception as ex:
         raise TaskError("Could not check backup: " + ex.__str__())
 
@@ -223,11 +238,14 @@ def performReporting(messages, reporterConfig):
     """
     Performs email reporting.
     """
+    global skippedBackups, inconsistenciesFound
     try:
         logging.info("Performing reporting.")
 
-        msg = MIMEText("\n".join(messages))
-        subj = "Status " + getGlobalStatus() + " on " + socket.gethostname() + " host. Report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
+        msg = MIMEText("\n-------------------------------------------------\n".join(messages))
+        subj = "Status " + getGlobalStatus() + " on " + socket.gethostname() + " host. Backups skipped: " + str(skippedBackups) + \
+               ". Files missing in archives: " + str(inconsistenciesFound) + \
+               ". Report as of " + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M")
         msg['Subject'] = reporterConfig.subjectPrefix + subj
         msg['From'] = reporterConfig.fromAddress
         msg['To'] = reporterConfig.toAddress
@@ -252,6 +270,16 @@ class TaskError(Exception):
          self.value = value
      def __str__(self):
          return repr(self.value)
+
+class ArchiveIntegrityError(Exception):
+     """
+     Abstract task utils error.
+     """
+     def __init__(self, value, inconsistencies=None):
+         self.value = value
+         self.inconsistencies = inconsistencies
+     def __str__(self):
+         return repr(self.value) + "\n" + "\n".join(self.inconsistencies if self.inconsistencies else [])
 
 def getNewestArchivePath(dirPath):
     """
