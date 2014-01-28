@@ -213,13 +213,13 @@ def performBackupCleanup(config):
         logging.info("Cleaning up tmp directory.")
         fileutils.cleanTmp()
 
-        if int(config.rotationPeriod) != 0:
-            totalRemoved = 0
-            for backup in config.backups:
+        totalRemoved = 0
+        for backup in config.backups:
+            if int(backup.rotationPeriod) != 0:
                 archivesToRemove = []
                 archiveDates = getArchiveNamesAndTimes(backup.target)
                 newestArchiveDate = max(archiveDates.items(), key=operator.itemgetter(1))[1]
-                oldestArchiveDate = newestArchiveDate-datetime.timedelta(days=config.rotationPeriod)
+                oldestArchiveDate = newestArchiveDate-datetime.timedelta(days=backup.rotationPeriod)
 
                 for archive in archiveDates.keys():
                     if oldestArchiveDate > archiveDates[archive]:
@@ -230,7 +230,7 @@ def performBackupCleanup(config):
                 totalRemoved+=len(archivesToRemove)
                 logging.info("Cleaning up old archives at "+backup.target+". Removed a total of "+str(len(archivesToRemove))+" files")
 
-            logging.info("Removed a total of " + str(totalRemoved) + " old archives.")
+        logging.info("Removed a total of " + str(totalRemoved) + " old archives.")
     except Exception as ex:
         raise TaskError("Couldn't complete cleanup: " + ex.__str__())
 

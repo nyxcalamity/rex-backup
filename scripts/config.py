@@ -23,9 +23,8 @@ class RexConfig:
     """
     Contains script configuration parameters.
     """
-    def __init__(self, reporterConfig=None, backups=None, rotationPeriod=None, performChecks=True, performReporting=False):
+    def __init__(self, reporterConfig=None, backups=None, performChecks=True, performReporting=False):
         self.backups=backups
-        self.rotationPeriod = rotationPeriod
         self.performChecks = performChecks
         self.performReporting = performReporting
         self.reporterConfig = reporterConfig
@@ -34,14 +33,16 @@ class BackupConfig:
     """
     Contains backup configuration parameters.
     """
-    def __init__(self, source=None, target=None, backupDowntime='0', excludeRegexp = ''):
+    def __init__(self, source=None, target=None, backupDowntime='0', excludeRegexp = '', rotationPeriod=None):
         self.source = source
         self.target = target
         self.excludeRegexp= excludeRegexp
         self.backupDowntime = backupDowntime
+        self.rotationPeriod = rotationPeriod
 
     def __str__(self):
-        return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+",downtime="+str(self.backupDowntime) +"]"
+        return self.__class__.__name__+"[source="+str(self.source)+",target="+str(self.target)+",downtime="+\
+               str(self.backupDowntime)+",rotationPeriod="+str(self.rotationPeriod)+"]"
 
 class ReporterConfig:
     """
@@ -76,7 +77,6 @@ def readConfig(configFilePath):
     try:
         #Parsing general configuration
         config = dom.getElementsByTagName("config")[0]
-        if config.hasAttribute("rotation-period"): rexConfig.rotationPeriod = int(config.getAttribute("rotation-period"))
         if config.hasAttribute("perform-checks"): rexConfig.performChecks = bool(config.getAttribute("perform-checks"))
         if config.hasAttribute("perform-reporting"): rexConfig.performReporting = bool(config.getAttribute("perform-reporting"))
 
@@ -87,6 +87,7 @@ def readConfig(configFilePath):
             backupCfg = BackupConfig()
             if backup.hasAttribute("backup-downtime"): backupCfg.backupDowntime = int(backup.getAttribute("backup-downtime"))
             if backup.hasAttribute("exclude-regexp"): backupCfg.excludeRegexp = str(backup.getAttribute("exclude-regexp"))
+            if backup.hasAttribute("rotation-period"): backupCfg.rotationPeriod = int(backup.getAttribute("rotation-period"))
             backupCfg.source = backup.getElementsByTagName("source")[0].childNodes[0].data
             backupCfg.target = backup.getElementsByTagName("target")[0].childNodes[0].data
             rexConfig.backups.append(backupCfg)

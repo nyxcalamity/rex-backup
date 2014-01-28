@@ -20,8 +20,8 @@ IMPORTANT NOTE:
 -->
 <config rotation-period="90" perform-checks="true" perform-reporting="true">
     <backups>
-        <backup backup-downtime="0" exclude-regexp="(\.DS_Service)">
-            <source>/mnt/trinity</source>
+        <backup backup-downtime="0" exclude-regexp="(\.DS_Service)" rotation-period="90">
+            <source>/home/nyxcalamity/.ssh</source>
             <target>/home/nyxcalamity/ws/ws-crx/rex-backup/backup</target>
         </backup>
         <!-- Add more backups if needed -->
