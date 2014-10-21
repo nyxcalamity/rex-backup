@@ -113,29 +113,31 @@ def main():
         #step 1:performing backups
         if len(rexConfig.backups) > 0:
             for backup in rexConfig.backups:
-                    if not isDowntimePeriod(backup): #don't do backups if it's a downtime period
-                        try: #try to perform backup
-                            performBackup(backup)
-                            addMessage(Status.Success, Tasks.Backup, backup.source)
-                        except Exception as ex:
-                            addMessage(Status.Failed, Tasks.Backup,backup.source,ex.__str__())
-                            logging.error("Failed to perform backup: " + ex.__str__())
-                            break #no need to continue the loop if backup failed
-                        try:#try to perform backup check
-                            if rexConfig.performChecks:
-                                performBackupCheck(backup)
-                                addMessage(Status.Success, Tasks.Check, backup.source)
-                        except ArchiveIntegrityError as ex:
-                            addMessage(Status.Failed, Tasks.Check,backup.source,ex.__str__())
-                            logging.error("Backup check found some archive inconsistencies: " + ex.__str__())
-                            inconsistenciesFound+=len(ex.inconsistencies)
-                        except Exception as ex:
-                            addMessage(Status.Failed, Tasks.Check,backup.source,ex.__str__())
-                            logging.error("Failed to perform backup check: " + ex.__str__())
-                    else:
-                        skippedBackups+=1
-                        addMessage(Status.Skipped, Tasks.Backup, backup.source)
-            if skippedBackups == len(rexConfig.backups): status = Status.Skipped
+                if not isDowntimePeriod(backup): #don't do backups if it's a downtime period
+                    try: #try to perform backup
+                        performBackup(backup)
+                        addMessage(Status.Success, Tasks.Backup, backup.source)
+                    except Exception as ex:
+                        addMessage(Status.Failed, Tasks.Backup,backup.source,ex.__str__())
+                        logging.error("Failed to perform backup: " + ex.__str__())
+                        break #no need to continue the loop if backup failed
+                    try:#try to perform backup check
+                        if rexConfig.performChecks:
+                            performBackupCheck(backup)
+                            addMessage(Status.Success, Tasks.Check, backup.source)
+                    except ArchiveIntegrityError as ex:
+                        addMessage(Status.Failed, Tasks.Check,backup.source,ex.__str__())
+                        logging.error("Backup check found some archive inconsistencies: " + ex.__str__())
+                        inconsistenciesFound+=len(ex.inconsistencies)
+                    except Exception as ex:
+                        addMessage(Status.Failed, Tasks.Check,backup.source,ex.__str__())
+                        logging.error("Failed to perform backup check: " + ex.__str__())
+                else:
+                    skippedBackups+=1
+                    addMessage(Status.Skipped, Tasks.Backup, backup.source)
+                fileutils.cleanTmp()
+            if skippedBackups == len(rexConfig.backups):
+                status = Status.Skipped
 
         #step 2:performing cleanup
         try:
