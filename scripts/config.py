@@ -92,22 +92,23 @@ def readConfig(configFilePath):
             backupCfg.target = backup.getElementsByTagName("target")[0].childNodes[0].data
             rexConfig.backups.append(backupCfg)
 
-        #Parsing configuration of reporter
-        reporterConfig = ReporterConfig()
-        reporter = config.getElementsByTagName("reporter")[0]
-        if reporter.hasAttribute("from-address"): reporterConfig.fromAddress = reporter.getAttribute("from-address")
-        if reporter.hasAttribute("to-address"): reporterConfig.toAddress = reporter.getAttribute("to-address")
-        if reporter.hasAttribute("subject-prefix"): reporterConfig.subjectPrefix = reporter.getAttribute("subject-prefix")
-        rexConfig.reporterConfig = reporterConfig
+        if rexConfig.performReporting:
+            #Parsing configuration of reporter
+            reporterConfig = ReporterConfig()
+            reporter = config.getElementsByTagName("reporter")[0]
+            if reporter.hasAttribute("from-address"): reporterConfig.fromAddress = reporter.getAttribute("from-address")
+            if reporter.hasAttribute("to-address"): reporterConfig.toAddress = reporter.getAttribute("to-address")
+            if reporter.hasAttribute("subject-prefix"): reporterConfig.subjectPrefix = reporter.getAttribute("subject-prefix")
+            rexConfig.reporterConfig = reporterConfig
 
-        #Parsing smtp configuration
-        smtpConfig = SmtpConfig()
-        smtp = reporter.getElementsByTagName("smtp")[0]
-        if smtp.hasAttribute("host"): smtpConfig.host = smtp.getAttribute("host")
-        if smtp.hasAttribute("port"): smtpConfig.port = smtp.getAttribute("port")
-        if smtp.hasAttribute("username"): smtpConfig.username = smtp.getAttribute("username")
-        if smtp.hasAttribute("password"): smtpConfig.password = smtp.getAttribute("password")
-        reporterConfig.smtpConfig = smtpConfig
+            #Parsing smtp configuration
+            smtpConfig = SmtpConfig()
+            smtp = reporter.getElementsByTagName("smtp")[0]
+            if smtp.hasAttribute("host"): smtpConfig.host = smtp.getAttribute("host")
+            if smtp.hasAttribute("port"): smtpConfig.port = smtp.getAttribute("port")
+            if smtp.hasAttribute("username"): smtpConfig.username = smtp.getAttribute("username")
+            if smtp.hasAttribute("password"): smtpConfig.password = smtp.getAttribute("password")
+            reporterConfig.smtpConfig = smtpConfig
     except Exception:
         raise ConfigError("Invalid file format.")
 

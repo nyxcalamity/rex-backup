@@ -20,13 +20,13 @@ IMPORTANT NOTE:
 -->
 <config rotation-period="90" perform-checks="true" perform-reporting="true">
     <backups>
-        <backup backup-downtime="0" exclude-regexp="(\.DS_Service)" rotation-period="90">
-            <source>/home/nyxcalamity/.ssh</source>
-            <target>/home/nyxcalamity/ws/ws-crx/rex-backup/backup</target>
+        <backup backup-downtime="0" exclude-regexp="(known_hosts)" rotation-period="90">
+            <source>/home/dsobchyshak/.ssh</source>
+            <target>/media/ws/repo/rex-backup/backup</target>
         </backup>
         <!-- Add more backups if needed -->
     </backups>
-    <reporter from-address="no-reply@crxmarkets.com" to-address="denys.sobchyshak@gmail.com,sobchyshak@crxmarkets.com" subject-prefix="[CRX-BACKUP]">
+    <reporter from-address="no-reply@crxmarkets.com" to-address="sobchyshak@crxmarkets.com" subject-prefix="[CRX-BACKUP]">
         <smtp host="smtp.office365.com" port="587" username="no-reply@crxmarkets.com" password="" />
     </reporter>
 </config>

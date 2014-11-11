@@ -29,7 +29,8 @@ import socket, os
 from email.mime.text import MIMEText
 from optparse import OptionParser
 
-import fileutils, config
+import fileutils
+import config
 
 ARCHIVE_FORMATS = ["zip", "tar", "bztar", "gztar"]
 
@@ -191,13 +192,13 @@ def performBackupCheck(backupConfig):
     try:
         logging.info("Checking backup: " + backupConfig.__str__())
 
-        archivePath = getNewestArchivePath(backupConfig.target)
-        if not archivePath:
+        archive_path = getNewestArchivePath(backupConfig.target)
+        if not archive_path:
             raise TaskError("No archive was found in the target dir: " + backupConfig.target)
-        logging.info("Copying newest archive: " + archivePath)
-        tmpArchive = fileutils.copyFile(archivePath, fileutils.getTmpRemoteDir())
+        logging.info("Copying newest archive: " + archive_path)
+        tmp_archive = fileutils.copyFile(archive_path, fileutils.getTmpRemoteDir())
         logging.info("Checking archive consistency.")
-        inconsistencies = fileutils.compareArchiveAgainstDir(tmpArchive, backupConfig.source)
+        inconsistencies = fileutils.compareArchiveAgainstDir(tmp_archive, backupConfig.source, backupConfig.excludeRegexp)
 
         logging.info("Backup check completed")
         if inconsistencies:

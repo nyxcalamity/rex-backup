@@ -26,6 +26,7 @@ import datetime
 import logging
 import hashlib
 import re
+
 from shutil import make_archive
 
 
@@ -60,7 +61,7 @@ def getTmpLocalDir():
     """
     Returns path to the temporary directory. Creates one if it didn't exist.
     """
-    tmpDir =  os.path.join(getTmpDir(), "local")
+    tmpDir = os.path.join(getTmpDir(), "local")
     if not os.path.exists(tmpDir):
         os.makedirs(tmpDir)
     return tmpDir
@@ -69,10 +70,10 @@ def getTmpRemoteDir():
     """
     Returns path to the temporary directory. Creates one if it didn't exist.
     """
-    tmpDir =  os.path.join(getTmpDir(), "remote")
-    if not os.path.exists(tmpDir):
-        os.makedirs(tmpDir)
-    return tmpDir
+    tmp_dir = os.path.join(getTmpDir(), "remote")
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
+    return tmp_dir
 
 def getLogDir():
     """
@@ -88,6 +89,7 @@ def cleanTmp():
     Deletes all files in the temp directory.
     """
     shutil.rmtree(getTmpDir())
+    shutil.rmtree(getTmpRemoteDir())
 
 def archiveDir(dirPath, archiveType):
     """
@@ -97,7 +99,7 @@ def archiveDir(dirPath, archiveType):
     if os.path.isdir(dirPath):
         sourceName = os.path.basename(dirPath) #Extracts base name
         archiveName = sourceName + "-" + datetime.datetime.now().strftime("%Y%m%d%H%M")
-        return make_archive(os.path.join(getTmpLocalDir(),archiveName), archiveType, dirPath)
+        return make_archive(os.path.join(getTmpLocalDir(), archiveName), archiveType, dirPath)
     else:
         raise FileUtilsError(dirErrorMsg + dirPath)
 
@@ -159,7 +161,7 @@ def getFiles(dirPath, pattern=""):
     else:
         raise FileUtilsError(dirErrorMsg + dirPath)
 
-def compareArchiveAgainstDir(archiveFilePath, sourceDirPath, ignoreLinks=True):
+def compareArchiveAgainstDir(archiveFilePath, sourceDirPath, exclude_regexp="", ignoreLinks=True):
     """
     Traverses sourceDirPath and tries to find matches in the archive. Returns a list of inconsistencies or None.
     """
@@ -190,11 +192,12 @@ def compareArchiveAgainstDir(archiveFilePath, sourceDirPath, ignoreLinks=True):
 
         #determine which key is used
         key = tarKey if tarKey in tarMembers else altTarKey
-        if key != tarKey and not (key in tarMembers):#don't perform double checks
-            inconsistencies.append("Can't find key in the archive: " + tarKey)
-        elif datetime.date.fromtimestamp(srcMembers[srcKey]) != datetime.date.fromtimestamp(tarMembers[key]):
-            inconsistencies.append("Wrong modification time detected: key=" + tarKey + ";archiveMtime=" + \
-                                   timestampToStr(tarMembers[tarKey]) + ";srcMtime=" + timestampToStr(srcMembers[srcKey]))
+        if not re.search(exclude_regexp, key):
+            if key != tarKey and not (key in tarMembers):  # don't perform double checks
+                inconsistencies.append("Can't find key in the archive: " + tarKey)
+            elif datetime.date.fromtimestamp(srcMembers[srcKey]) != datetime.date.fromtimestamp(tarMembers[key]):
+                inconsistencies.append("Wrong modification time detected: key=" + tarKey + ";archiveMtime=" + \
+                                       timestampToStr(tarMembers[tarKey]) + ";srcMtime=" + timestampToStr(srcMembers[srcKey]))
 
     if len(inconsistencies) > 0:
         return inconsistencies
